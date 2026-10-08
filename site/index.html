@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101611">
+    <meta name="description" content="Crie uma especificação de agente com Nestor Forge e baixe o pacote com instruções para Claude ou Codex.">
+    <title>Nestor Forge · Oficina de agentes</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="Nestor Forge, início">
+          <span class="brand-mark" aria-hidden="true">N<span>✦</span></span>
+          <span>NESTOR <strong>FORGE</strong></span>
+        </a>
+        <span class="version">v0.3 <span class="status-dot"></span> No navegador</span>
+      </header>
+
+      <main>
+        <div class="intro">
+          <div>
+            <p class="eyebrow">OFICINA DE AGENTES <span> / </span> COMPILADOR WEB</p>
+            <h1>Forje seu agente.</h1>
+            <p class="intro-copy">Descreva a função, defina os limites e receba um pacote pronto para levar ao Claude ou Codex.</p>
+          </div>
+          <div class="intro-index" aria-hidden="true"><span>01</span> / 03</div>
+        </div>
+
+        <div class="workspace">
+          <section class="panel editor-panel" aria-labelledby="editor-heading">
+            <div class="panel-heading">
+              <div><p class="step">01 / ESPECIFICAÇÃO</p><h2 id="editor-heading">Defina o agente</h2></div>
+              <div class="tabs" role="tablist" aria-label="Modo de edição">
+                <button id="guided-tab" class="tab active" role="tab" aria-selected="true" aria-controls="guided-panel" type="button">Guiado</button>
+                <button id="json-tab" class="tab" role="tab" aria-selected="false" aria-controls="json-panel" type="button">JSON</button>
+              </div>
+            </div>
+
+            <div id="guided-panel" role="tabpanel" aria-labelledby="guided-tab">
+              <form id="forge-form">
+                <div class="form-grid">
+                  <label class="field"><span>Perfil</span><select name="profile" id="profile"><option value="reader">Leitor</option><option value="coder">Programador</option><option value="reviewer">Revisor</option><option value="infra">Infraestrutura</option><option value="qa">Qualidade</option><option value="planner">Planejador</option><option value="audio">Áudio</option><option value="custom">Personalizado</option></select></label>
+                  <label class="field"><span>Nome do agente <em>obrigatório</em></span><input name="name" id="agent-name" autocomplete="off" placeholder="Ex.: Nestor Claws" required maxlength="100"></label>
+                </div>
+                <label class="field"><span>Papel <em>obrigatório</em></span><input name="role" id="role" placeholder="Ex.: auditor de segurança de código e APIs" required></label>
+                <label class="field"><span>Missão principal <em>obrigatória</em></span><textarea name="mission" id="mission" rows="2" placeholder="Qual resultado o agente deve entregar?" required></textarea></label>
+                <div class="form-grid">
+                  <label class="field"><span>Focos <small>um por linha</small></span><textarea name="focus" rows="4" placeholder="Analisar autenticação&#10;Identificar riscos"></textarea></label>
+                  <label class="field"><span>Tecnologias <small>uma por linha</small></span><textarea name="technologies" rows="4" placeholder="Python&#10;PostgreSQL"></textarea></label>
+                </div>
+                <div class="form-grid">
+                  <label class="field"><span>Comportamento <small>um por linha</small></span><textarea name="behavior" rows="3" placeholder="Direto&#10;Baseado em evidências"></textarea></label>
+                  <label class="field"><span>Seções da resposta <small>uma por linha</small></span><textarea name="response_sections" rows="3" placeholder="Diagnóstico&#10;Riscos&#10;Unknowns"></textarea></label>
+                </div>
+
+                <details class="details">
+                  <summary>Instruções detalhadas <span>pipeline, regras e validação</span></summary>
+                  <div id="advanced-fields" class="details-content"></div>
+                </details>
+
+                <details class="details">
+                  <summary>Permissões e saída <span>limites do agente</span></summary>
+                  <div class="details-content">
+                    <label class="field"><span>Formato preferido</span><select name="output_format"><option value="markdown">Markdown</option><option value="json">JSON</option></select></label>
+                    <label class="field"><span>Campos obrigatórios <small>um por linha</small></span><textarea name="required_fields" rows="2" placeholder="Evidências&#10;Impacto"></textarea></label>
+                    <div class="switches" id="permission-fields"></div>
+                  </div>
+                </details>
+              </form>
+            </div>
+
+            <div id="json-panel" role="tabpanel" aria-labelledby="json-tab" hidden>
+              <p class="helper">Edite a especificação completa ou importe um arquivo JSON da Forja.</p>
+              <label class="field" for="json-editor"><span>spec.json</span></label>
+              <textarea id="json-editor" class="code-editor" spellcheck="false" aria-label="Especificação JSON"></textarea>
+              <div class="inline-actions"><label for="json-upload" class="text-button">Importar JSON ↗</label><input id="json-upload" type="file" accept=".json,application/json" hidden><button id="reset-json" class="text-button" type="button">Limpar e começar</button></div>
+            </div>
+          </section>
+
+          <aside class="panel output-panel" aria-labelledby="output-heading">
+            <div class="panel-heading"><div><p class="step">02 / DESTINO</p><h2 id="output-heading">Escolha o ambiente</h2></div></div>
+            <fieldset class="destination"><legend class="sr-only">Plataforma de destino</legend>
+              <label class="destination-option selected"><input type="radio" name="target" value="codex" checked><span class="destination-icon">⌘</span><span><strong>Codex</strong><small>Skill + agente de projeto</small></span><span class="radio-mark"></span></label>
+              <label class="destination-option"><input type="radio" name="target" value="claude"><span class="destination-icon claude-icon">✳</span><span><strong>Claude</strong><small>Instruções para Claude Code</small></span><span class="radio-mark"></span></label>
+            </fieldset>
+
+            <div class="output-divider"></div>
+            <p class="step">03 / GERAÇÃO</p>
+            <div class="result-summary"><span class="result-symbol" aria-hidden="true">↘</span><div><strong>Um ZIP, tudo no lugar</strong><p>Especificação, agente compilado, regras derivadas, relatório e prompt para o ambiente escolhido.</p></div></div>
+            <button id="generate-button" class="primary-button" type="button">Gerar pacote <span aria-hidden="true">↗</span></button>
+            <p id="status" class="status" role="status" aria-live="polite">Pronto para compilar.</p>
+
+            <div id="result" class="result" hidden>
+              <div class="result-top"><span class="ready-dot"></span><strong>Pacote pronto</strong><small id="result-size"></small></div>
+              <a id="download-zip" class="download-button" download>Baixar ZIP <span aria-hidden="true">↓</span></a>
+              <div class="prompt-header"><strong>Prompt para continuar</strong><button id="copy-prompt" type="button">Copiar</button></div>
+              <textarea id="prompt-preview" class="prompt-preview" readonly spellcheck="false" aria-label="Prompt para criar o agente"></textarea>
+            </div>
+            <p class="privacy-note"><span aria-hidden="true">◈</span> Sua especificação é processada no navegador. A primeira geração baixa o runtime Python.</p>
+          </aside>
+        </div>
+      </main>
+      <footer><span>NESTOR FORGE / 2026</span><span>Especificação → Compilação → Agente</span></footer>
+    </div>
+  </body>
+</html>

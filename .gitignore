@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.chrome-*/
+.edge-*/
+tests/forge-ui.png
+tests/forge-browser-output.zip
+build/
+build-agent/
+*-review/
+Nestor-Claws-v1.0.0/
+Nestor-Claws-v1.0.0-review/
+nestor-claws-modular-package-review/
+*.zip
