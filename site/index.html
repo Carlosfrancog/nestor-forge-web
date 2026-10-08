@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#101611">
+    <meta name="theme-color" content="#f2f0ea">
     <meta name="description" content="Crie uma especificação de agente com Nestor Forge e baixe o pacote com instruções para Claude ou Codex.">
-    <title>Nestor Forge · Oficina de agentes</title>
+    <title>Nestor Forge · Criar agente</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css">
     <script src="./app.js" defer></script>
@@ -13,27 +13,24 @@
   <body>
     <div class="shell">
       <header class="topbar">
-        <a class="brand" href="./" aria-label="Nestor Forge, início">
-          <span class="brand-mark" aria-hidden="true">N<span>✦</span></span>
-          <span>NESTOR <strong>FORGE</strong></span>
-        </a>
-        <span class="version">v0.3 <span class="status-dot"></span> No navegador</span>
+        <a class="brand" href="./" aria-label="Nestor Forge, início"><span class="brand-mark" aria-hidden="true">N/F</span><span>Nestor Forge</span></a>
+        <span class="version">FERRAMENTA WEB <span aria-hidden="true">/</span> VERSÃO 0.3</span>
       </header>
 
       <main>
         <div class="intro">
           <div>
-            <p class="eyebrow">OFICINA DE AGENTES <span> / </span> COMPILADOR WEB</p>
-            <h1>Forje seu agente.</h1>
-            <p class="intro-copy">Descreva a função, defina os limites e receba um pacote pronto para levar ao Claude ou Codex.</p>
+            <p class="eyebrow">NOVA ESPECIFICAÇÃO <span>—</span> 01 / 02</p>
+            <h1>Criar agente</h1>
+            <p class="intro-copy">Defina o trabalho e os limites do agente. A Forja compila os arquivos e prepara a instrução para Claude ou Codex.</p>
           </div>
-          <div class="intro-index" aria-hidden="true"><span>01</span> / 03</div>
+          <div class="intro-index" aria-hidden="true">SPEC / JSON</div>
         </div>
 
         <div class="workspace">
           <section class="panel editor-panel" aria-labelledby="editor-heading">
             <div class="panel-heading">
-              <div><p class="step">01 / ESPECIFICAÇÃO</p><h2 id="editor-heading">Defina o agente</h2></div>
+              <div><p class="step">01 — ENTRADA</p><h2 id="editor-heading">Especificação</h2></div>
               <div class="tabs" role="tablist" aria-label="Modo de edição">
                 <button id="guided-tab" class="tab active" role="tab" aria-selected="true" aria-controls="guided-panel" type="button">Guiado</button>
                 <button id="json-tab" class="tab" role="tab" aria-selected="false" aria-controls="json-panel" type="button">JSON</button>
@@ -82,29 +79,29 @@
           </section>
 
           <aside class="panel output-panel" aria-labelledby="output-heading">
-            <div class="panel-heading"><div><p class="step">02 / DESTINO</p><h2 id="output-heading">Escolha o ambiente</h2></div></div>
+            <div class="panel-heading"><div><p class="step">02 — SAÍDA</p><h2 id="output-heading">Pacote do agente</h2></div></div>
             <fieldset class="destination"><legend class="sr-only">Plataforma de destino</legend>
-              <label class="destination-option selected"><input type="radio" name="target" value="codex" checked><span class="destination-icon">⌘</span><span><strong>Codex</strong><small>Skill + agente de projeto</small></span><span class="radio-mark"></span></label>
-              <label class="destination-option"><input type="radio" name="target" value="claude"><span class="destination-icon claude-icon">✳</span><span><strong>Claude</strong><small>Instruções para Claude Code</small></span><span class="radio-mark"></span></label>
+              <label class="destination-option selected"><input type="radio" name="target" value="codex" checked><span class="destination-index" aria-hidden="true">01</span><span><strong>Codex</strong><small>Skill e agente de projeto</small></span><span class="radio-mark"></span></label>
+              <label class="destination-option"><input type="radio" name="target" value="claude"><span class="destination-index" aria-hidden="true">02</span><span><strong>Claude</strong><small>Instruções para Claude Code</small></span><span class="radio-mark"></span></label>
             </fieldset>
 
             <div class="output-divider"></div>
-            <p class="step">03 / GERAÇÃO</p>
-            <div class="result-summary"><span class="result-symbol" aria-hidden="true">↘</span><div><strong>Um ZIP, tudo no lugar</strong><p>Especificação, agente compilado, regras derivadas, relatório e prompt para o ambiente escolhido.</p></div></div>
-            <button id="generate-button" class="primary-button" type="button">Gerar pacote <span aria-hidden="true">↗</span></button>
+            <p class="step">CONTEÚDO DO ZIP</p>
+            <ul class="package-list"><li><span>01</span> Especificação original</li><li><span>02</span> Agente compilado e regras</li><li><span>03</span> Relatório de geração</li><li><span>04</span> Prompt do destino escolhido</li></ul>
+            <button id="generate-button" class="primary-button" type="button">Compilar pacote <span aria-hidden="true">→</span></button>
             <p id="status" class="status" role="status" aria-live="polite">Pronto para compilar.</p>
 
             <div id="result" class="result" hidden>
-              <div class="result-top"><span class="ready-dot"></span><strong>Pacote pronto</strong><small id="result-size"></small></div>
+              <div class="result-top"><strong>Pacote pronto</strong><small id="result-size"></small></div>
               <a id="download-zip" class="download-button" download>Baixar ZIP <span aria-hidden="true">↓</span></a>
               <div class="prompt-header"><strong>Prompt para continuar</strong><button id="copy-prompt" type="button">Copiar</button></div>
               <textarea id="prompt-preview" class="prompt-preview" readonly spellcheck="false" aria-label="Prompt para criar o agente"></textarea>
             </div>
-            <p class="privacy-note"><span aria-hidden="true">◈</span> Sua especificação é processada no navegador. A primeira geração baixa o runtime Python.</p>
+            <p class="privacy-note">A especificação é processada no navegador. Na primeira geração, o compilador baixa o runtime Python.</p>
           </aside>
         </div>
       </main>
-      <footer><span>NESTOR FORGE / 2026</span><span>Especificação → Compilação → Agente</span></footer>
+      <footer><span>NESTOR FORGE / 2026</span><span>COMPILADOR LOCAL NO NAVEGADOR</span></footer>
     </div>
   </body>
 </html>
