@@ -10,6 +10,7 @@ const { TEMPLATES, discover, createFile } = require('./catalog');
 const forge = require('./forge');
 const activity = require('./activity');
 const agentRuns = require('./agentRuns');
+const updates = require('./updates');
 const sharing = require('./share');
 const { openDashboard } = require('./dashboard');
 
@@ -416,6 +417,7 @@ async function monitor(context, provider, enable) {
   } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
 }
 function activate(context) {
+  updates.start(context, vscode);
   const logFile = path.join(context.globalStorageUri.fsPath, 'activity.jsonl');
   const provider = new AgentsTreeProvider(context.extensionPath, logFile);
   const registry = createRunRegistry(context);

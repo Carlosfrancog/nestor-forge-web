@@ -36,6 +36,8 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   let surfaceMode = 'terminal';
   const context = {
     extensionPath: path.join(__dirname, '..'), globalStorageUri: { fsPath: root },
+    extension: { packageJSON: require('../package.json') },
+    globalState: { get: () => undefined, update: async () => undefined },
     workspaceState: { get: () => undefined }, subscriptions: []
   };
   const vscode = {
@@ -52,7 +54,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
     workspace: {
       isTrusted: true,
       workspaceFolders: [{ name: 'project', uri: { fsPath: root, scheme: 'file' } }],
-      getConfiguration: () => ({ get: key => ({ includeUserInstallations: false, claudePath: process.execPath, codexPath: process.execPath })[key] }),
+      getConfiguration: () => ({ get: key => ({ includeUserInstallations: false, claudePath: process.execPath, codexPath: process.execPath, updateMode: 'off' })[key] }),
       onDidChangeWorkspaceFolders: () => ({ dispose() {} }),
       onDidChangeConfiguration: () => ({ dispose() {} }),
       createFileSystemWatcher: () => ({ onDidCreate() {}, onDidDelete() {}, onDidChange() {}, dispose() {} })
