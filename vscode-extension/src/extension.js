@@ -1,6 +1,7 @@
 'use strict';
 
 const { execFile } = require('node:child_process');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -8,6 +9,7 @@ const vscode = require('vscode');
 const { TEMPLATES, discover, createFile } = require('./catalog');
 const forge = require('./forge');
 const activity = require('./activity');
+const sharing = require('./share');
 const { openDashboard } = require('./dashboard');
 
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
@@ -193,6 +195,62 @@ async function runScript(context, provider, element) {
   task.presentationOptions = { reveal: vscode.TaskRevealKind.Always, panel: vscode.TaskPanelKind.Dedicated };
   await vscode.tasks.executeTask(task);
 }
+
+async function shareAgent(context, provider, element) {
+  if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de compartilhar agentes.');
+  if (element?.kind !== 'file' || !['claudeAgents', 'codexAgents', 'skills'].includes(element.item.category)) return;
+  const action = await vscode.window.showQuickPick([
+    { label: 'Instalar em outro projeto aberto', detail: 'Copia agente, skills e referências relacionadas', value: 'local' },
+    { label: 'Exportar pacote ZIP', detail: 'Inclui manifesto e install.sh para compartilhar como arquivo', value: 'zip' }
+  ], { placeHolder: `Compartilhar ${element.item.label}` });
+  if (!action) return;
+  try {
+    if (action.value === 'zip') {
+      const selected = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(path.join(element.root.path, `${element.item.label}.agentorchestra.zip`)),
+        filters: { 'Pacote AgentOrchestra': ['zip'] }, saveLabel: 'Exportar pacote'
+      });
+      if (!selected) return;
+      const result = await sharing.exportAgent(setting('pythonPath'), context.extensionPath, element.root.path, element.item.file, selected.fsPath);
+      vscode.window.showInformationMessage(`Pacote criado com ${result.files.length} arquivo(s): ${selected.fsPath}`);
+      return;
+    }
+    const folders = localFolders().filter(folder => folder.uri.fsPath !== element.root.path);
+    if (!folders.length) return vscode.window.showInformationMessage('Abra também o projeto de destino no VS Code para compartilhar diretamente.');
+    const target = folders.length === 1 ? folders[0] : await vscode.window.showQuickPick(
+      folders.map(value => ({ label: value.name, description: value.uri.fsPath, value })),
+      { placeHolder: 'Projeto que receberá o agente' }
+    ).then(choice => choice?.value);
+    if (!target) return;
+    fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
+    const archive = path.join(context.globalStorageUri.fsPath, `transfer-${crypto.randomUUID()}.zip`);
+    try {
+      await sharing.exportAgent(setting('pythonPath'), context.extensionPath, element.root.path, element.item.file, archive);
+      const review = await sharing.inspectPackage(setting('pythonPath'), context.extensionPath, archive, target.uri.fsPath);
+      if (review.conflicts.length) throw new Error(`Arquivos existentes em ${target.name}: ${review.conflicts.slice(0, 8).join(', ')}`);
+      const result = await sharing.importPackage(setting('pythonPath'), context.extensionPath, archive, target.uri.fsPath);
+      provider.refresh();
+      vscode.window.showInformationMessage(`${element.item.label} instalado em ${target.name} (${result.files.length} arquivo(s)).`);
+    } finally { fs.rmSync(archive, { force: true }); }
+  } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+}
+
+async function importAgentPackage(context, provider) {
+  if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de importar agentes.');
+  const folder = await selectFolder('Projeto que receberá o agente');
+  if (!folder) return;
+  const selected = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'Pacote AgentOrchestra': ['zip'] }, openLabel: 'Importar pacote' });
+  if (!selected?.[0]) return;
+  try {
+    const archive = selected[0].fsPath;
+    const review = await sharing.inspectPackage(setting('pythonPath'), context.extensionPath, archive, folder.uri.fsPath);
+    if (review.conflicts.length) throw new Error(`Arquivos existentes no destino: ${review.conflicts.slice(0, 8).join(', ')}`);
+    const result = await sharing.importPackage(setting('pythonPath'), context.extensionPath, archive, folder.uri.fsPath);
+    provider.refresh();
+    vscode.window.showInformationMessage(`Agente importado em ${folder.name} (${result.files.length} arquivo(s)).`);
+  } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+}
+
 async function monitor(context, provider, enable) {
   if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de configurar hooks.');
   const folder = await selectFolder('Projeto para o monitoramento');
@@ -235,6 +293,8 @@ function activate(context) {
     'agentOrchestra.disableMonitoring': () => monitor(context, provider, false),
     'agentOrchestra.instructions': showInstructions,
     'agentOrchestra.runScript': element => runScript(context, provider, element),
+    'agentOrchestra.shareAgent': element => shareAgent(context, provider, element),
+    'agentOrchestra.importPackage': () => importAgentPackage(context, provider),
     'agentOrchestra.open': openFile,
     'agentOrchestra.preview': previewFile,
     'agentOrchestra.reveal': element => { const file = fileFrom(element); if (file) return vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(file)); },

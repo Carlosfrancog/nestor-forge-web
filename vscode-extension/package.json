@@ -2,7 +2,7 @@
   "name": "agentorchestra",
   "displayName": "AgentOrchestra",
   "description": "Explore agentes e skills, crie com a Forja e analise mudanças do projeto.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "nestor-forge",
   "icon": "media/agents.png",
   "engines": {
@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/structural.js && node --check src/diffAst.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
+    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/share.js && node --check src/structural.js && node --check src/diffAst.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
     "vscode:prepublish": "python ../scripts/bundle_extension_backend.py"
   },
   "contributes": {
@@ -101,6 +101,16 @@
       {
         "command": "agentOrchestra.runScript",
         "title": "AgentOrchestra: Executar script manualmente"
+      },
+      {
+        "command": "agentOrchestra.shareAgent",
+        "title": "AgentOrchestra: Compartilhar agente",
+        "icon": "$(share)"
+      },
+      {
+        "command": "agentOrchestra.importPackage",
+        "title": "AgentOrchestra: Importar pacote de agente",
+        "icon": "$(cloud-download)"
       }
     ],
     "menus": {
@@ -136,6 +146,10 @@
         {
           "command": "agentOrchestra.runScript",
           "when": "false"
+        },
+        {
+          "command": "agentOrchestra.shareAgent",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -158,6 +172,11 @@
           "command": "agentOrchestra.forgeCreate",
           "when": "view == agentOrchestra.files",
           "group": "navigation@4"
+        },
+        {
+          "command": "agentOrchestra.importPackage",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
@@ -200,6 +219,11 @@
           "command": "agentOrchestra.runScript",
           "when": "view == agentOrchestra.files && viewItem == orchestraScript",
           "group": "navigation@2"
+        },
+        {
+          "command": "agentOrchestra.shareAgent",
+          "when": "view == agentOrchestra.files && viewItem == orchestraAgent",
+          "group": "inline@1"
         }
       ]
     },

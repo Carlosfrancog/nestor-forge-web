@@ -2,3 +2,5 @@
 test/**
 *.vsix
 scripts/render-icon.ps1
+**/__pycache__/**
+**/*.pyc
