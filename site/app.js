@@ -117,11 +117,16 @@ function slugify(name) {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'agente';
 }
 function createPrompt(target, name) {
-  const first = `Você recebeu o ZIP gerado pelo Nestor Forge para o agente "${name}". Extraia-o e leia spec.json, agent.md, agent.normalized.json, agent.derived.json e BUILD_REPORT.md antes de criar qualquer arquivo. Trate esses arquivos como fonte da especificação. Preserve missão, foco, limites, permissões e contrato de saída. Não invente capacidades. Não altere os arquivos originais do ZIP; coloque adaptações em arquivos novos. Ao final, mostre a árvore dos arquivos, explique como ativar o agente e confira se as regras de permissão permanecem consistentes.`;
   if (target === 'codex') {
+    const first = `Você recebeu o ZIP gerado pelo Nestor Forge para o agente "${name}". Extraia-o e leia spec.json, agent.md, agent.normalized.json, agent.derived.json e BUILD_REPORT.md antes de criar qualquer arquivo. Trate esses arquivos como fonte da especificação. Preserve missão, foco, limites, permissões e contrato de saída. Não invente capacidades. Não altere os arquivos originais do ZIP; coloque adaptações em arquivos novos. Ao final, mostre a árvore dos arquivos, explique como ativar o agente e confira se as regras de permissão permanecem consistentes.`;
     return `${first}\n\nCrie uma skill de projeto para Codex em .agents/skills/${slugify(name)}/SKILL.md, com metadados name e description, instruções de uso e referências aos arquivos originais. Crie também .codex/agents/${slugify(name)}.toml com name, description e developer_instructions, apontando para a skill. Se a especificação proibir alterações, configure o agente como read-only. Não modifique AGENTS.md global ou configurações fora do projeto. Valide os arquivos criados e apresente um exemplo de pedido para usar a skill e outro para delegar ao subagente.`;
   }
-  return `${first}\n\nCrie um agente de projeto para Claude Code usando o formato de agentes suportado no ambiente atual. Organize as instruções em um arquivo de agente e referências modulares quando isso ajudar, sem perder nenhuma regra do ZIP. Use ferramentas e permissões compatíveis com a especificação, mantendo análise passiva por padrão se for o caso. Valide os arquivos criados e apresente um exemplo de pedido para acionar o agente no Claude Code. Se estiver apenas no chat do Claude, entregue a árvore e o conteúdo integral dos arquivos para salvar no projeto.`;
+  if (target === 'unified') {
+    const slug = slugify(name);
+    return `O ZIP contém um pacote de projeto para Claude Code e Codex. Extraia o conteúdo na raiz do repositório, preservando as pastas .agents, .claude e .codex. A instrução central está em .agents/skills/${slug}/SKILL.md; .agents/routes/${slug}.toml registra os caminhos gerados pela Forja. O Codex descobre a skill em .agents/skills e o agente em .codex/agents; o Claude Code usa os adaptadores em .claude/skills e .claude/agents. Revise esses arquivos antes de usar e preserve as permissões descritas na instrução central.`;
+  }
+  const slug = slugify(name);
+  return `O ZIP do Nestor Forge já contém um plugin Claude para "${name}", com manifesto, skill e subagente. Extraia e revise os arquivos antes de instalar. No Claude Cowork, use Customize > Plugins para enviar o ZIP. No Claude Code, valide com \`claude plugin validate ./caminho/${slug}\` e teste com \`claude --plugin-dir ./caminho/${slug}\`. A skill pode ser chamada com \`/${slug}:${slug}\`; o subagente pode ser acionado com \`@agent-${slug}:${slug}\`. Preserve as permissões descritas nas instruções.`;
 }
 function validate(data) {
   if (!data || Array.isArray(data) || typeof data !== 'object') throw new Error('A especificação deve ser um objeto JSON.');

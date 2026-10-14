@@ -22,11 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Copiar compilador atual
-        run: cp forge.py site/forge.py
+      - name: Montar site
+        run: python scripts/build_site.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: dist/site
       - id: deployment
         uses: actions/deploy-pages@v4
