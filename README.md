@@ -1,5 +1,7 @@
 # Nestor Forge v0.3
 
+**AgentOrchestra**, extensão experimental para visualizar e organizar agentes e skills no VS Code: [vscode-extension/README.md](vscode-extension/README.md).
+
 Plano de integrações com Claude Cowork, plugins e CLI: [docs/INTEGRACOES.md](docs/INTEGRACOES.md).
 
 Para outro agente consultar as perguntas, responder por JSON e receber um relatório compacto sem abrir o assistente, use [o executor para agentes](docs/AGENT_RUNNER.md).

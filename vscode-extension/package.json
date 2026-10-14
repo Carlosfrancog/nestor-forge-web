@@ -1,0 +1,249 @@
+{
+  "name": "agentorchestra",
+  "displayName": "AgentOrchestra",
+  "description": "Explore agentes e skills, crie com a Forja e analise mudanças do projeto.",
+  "version": "0.2.1",
+  "publisher": "nestor-forge",
+  "icon": "media/agents.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onView:agentOrchestra.files"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/structural.js && node --check src/diffAst.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
+    "vscode:prepublish": "python ../scripts/bundle_extension_backend.py"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentOrchestra",
+          "title": "AgentOrchestra",
+          "icon": "media/agents.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentOrchestra": [
+        {
+          "id": "agentOrchestra.files",
+          "name": "Agentes e skills"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "agentOrchestra.refresh",
+        "title": "AgentOrchestra: Atualizar",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "agentOrchestra.find",
+        "title": "AgentOrchestra: Buscar agente ou skill",
+        "icon": "$(search)"
+      },
+      {
+        "command": "agentOrchestra.create",
+        "title": "AgentOrchestra: Criar agente ou skill",
+        "icon": "$(add)"
+      },
+      {
+        "command": "agentOrchestra.open",
+        "title": "AgentOrchestra: Abrir para editar"
+      },
+      {
+        "command": "agentOrchestra.preview",
+        "title": "AgentOrchestra: Visualizar em leitura"
+      },
+      {
+        "command": "agentOrchestra.reveal",
+        "title": "AgentOrchestra: Mostrar no Explorer"
+      },
+      {
+        "command": "agentOrchestra.copyPath",
+        "title": "AgentOrchestra: Copiar caminho"
+      },
+      {
+        "command": "agentOrchestra.forgeCreate",
+        "title": "AgentOrchestra: Criar com a Forja",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "agentOrchestra.forgeBuild",
+        "title": "AgentOrchestra: Gerar a partir da especificação"
+      },
+      {
+        "command": "agentOrchestra.dashboard",
+        "title": "AgentOrchestra: Abrir painel do agente"
+      },
+      {
+        "command": "agentOrchestra.enableMonitoring",
+        "title": "AgentOrchestra: Ativar monitoramento local"
+      },
+      {
+        "command": "agentOrchestra.disableMonitoring",
+        "title": "AgentOrchestra: Desativar monitoramento local"
+      },
+      {
+        "command": "agentOrchestra.instructions",
+        "title": "AgentOrchestra: Ler instruções do script"
+      },
+      {
+        "command": "agentOrchestra.runScript",
+        "title": "AgentOrchestra: Executar script manualmente"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "agentOrchestra.open",
+          "when": "false"
+        },
+        {
+          "command": "agentOrchestra.preview",
+          "when": "false"
+        },
+        {
+          "command": "agentOrchestra.reveal",
+          "when": "false"
+        },
+        {
+          "command": "agentOrchestra.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "agentOrchestra.forgeBuild",
+          "when": "false"
+        },
+        {
+          "command": "agentOrchestra.dashboard",
+          "when": "false"
+        },
+        {
+          "command": "agentOrchestra.instructions",
+          "when": "false"
+        },
+        {
+          "command": "agentOrchestra.runScript",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "agentOrchestra.refresh",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentOrchestra.find",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentOrchestra.create",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@3"
+        },
+        {
+          "command": "agentOrchestra.forgeCreate",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agentOrchestra.preview",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraAgent)",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentOrchestra.open",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSpec)",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentOrchestra.reveal",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSpec || viewItem == orchestraScript)",
+          "group": "navigation@3"
+        },
+        {
+          "command": "agentOrchestra.copyPath",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSpec || viewItem == orchestraScript)",
+          "group": "navigation@4"
+        },
+        {
+          "command": "agentOrchestra.dashboard",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraAgent || viewItem == orchestraSpec)",
+          "group": "navigation@5"
+        },
+        {
+          "command": "agentOrchestra.forgeBuild",
+          "when": "view == agentOrchestra.files && viewItem == orchestraSpec",
+          "group": "navigation@6"
+        },
+        {
+          "command": "agentOrchestra.instructions",
+          "when": "view == agentOrchestra.files && viewItem == orchestraScript",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentOrchestra.runScript",
+          "when": "view == agentOrchestra.files && viewItem == orchestraScript",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AgentOrchestra",
+      "properties": {
+        "agentOrchestra.includeUserInstallations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mostra agentes e skills em ~/.codex e ~/.claude, além dos projetos abertos."
+        },
+        "agentOrchestra.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Executável Python para a Forja e análise AST de Python."
+        },
+        "agentOrchestra.nodePath": {
+          "type": "string",
+          "default": "node",
+          "description": "Executável Node.js para o analisador integrado e scripts JavaScript."
+        },
+        "agentOrchestra.goPath": {
+          "type": "string",
+          "default": "go",
+          "description": "Executável Go para scripts e análise AST de Go."
+        },
+        "agentOrchestra.shellPath": {
+          "type": "string",
+          "default": "bash",
+          "description": "Shell para scripts .sh de skills."
+        },
+        "agentOrchestra.powershellPath": {
+          "type": "string",
+          "default": "powershell",
+          "description": "PowerShell para scripts .ps1 de skills."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.9",
+    "@vue/compiler-sfc": "^3.5.44",
+    "pgsql-ast-parser": "^12.0.2",
+    "php-parser": "^3.7.0",
+    "postcss": "^8.5.30"
+  }
+}

@@ -26,3 +26,5 @@ Nestor-Claws-v1.0.0/
 Nestor-Claws-v1.0.0-review/
 nestor-claws-modular-package-review/
 *.zip
+/vscode-extension/vendor/
+/vscode-extension/node_modules/
