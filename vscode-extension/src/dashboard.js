@@ -52,8 +52,16 @@ function statusText(summary) {
   })[summary.state];
 }
 
-function render(item, root, specInfo, noteText, summary, nonce) {
+function runStatusText(run) {
+  if (!run) return 'Nenhuma execução iniciada neste painel';
+  return ({ starting: 'Abrindo terminal', running: 'Processo iniciado no terminal', finished: 'Processo encerrado', closed: 'Terminal encerrado; código indisponível',
+    failed: 'Processo encerrado com erro', prepared: 'Instrução copiada para a extensão oficial' })[run.status] || 'Estado desconhecido';
+}
+
+function render(item, root, specInfo, noteText, summary, nonce, run) {
   const last = summary.lastAt ? new Date(summary.lastAt).toLocaleString('pt-BR') : '—';
+  const canRun = ['claudeAgents', 'codexAgents'].includes(item.category);
+  const runDetails = run ? `${run.platform === 'claude' ? 'Claude' : 'Codex'} · ${run.preset} · ${run.project} · ${new Date(run.startedAt).toLocaleString('pt-BR')}${run.exitCode == null ? '' : ` · código ${run.exitCode}`}` : '';
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,7 +75,8 @@ function render(item, root, specInfo, noteText, summary, nonce) {
       pre{white-space:pre-wrap;word-break:break-word;background:var(--vscode-editorWidget-background);padding:14px;border-radius:5px}
     </style></head><body>
     <h1>${escapeHtml(item.label)}</h1><p class="muted">${escapeHtml(root.name)} · ${escapeHtml(item.category)}<br>${escapeHtml(item.file)}</p>
-    <div class="bar"><button data-action="openSource">Abrir fonte</button><button data-action="openSpec">Abrir spec</button><button data-action="linkSpec">Vincular spec</button><button data-action="build">Gerar com a Forja</button><button data-action="editNotes">Editar notas</button><button data-action="refresh">Atualizar</button></div>
+    <div class="bar"><button data-action="openSource">Abrir fonte</button><button data-action="openSpec">Abrir spec</button><button data-action="linkSpec">Vincular spec</button><button data-action="build">Gerar com a Forja</button><button data-action="editNotes">Editar notas</button>${canRun ? '<button data-action="runAgent">Executar agente</button><button data-action="focusTerminal">Abrir terminal</button>' : ''}<button data-action="refresh">Atualizar</button></div>
+    ${canRun ? `<h2>Execução iniciada pelo AgentOrchestra</h2><div class="metric"><strong>Estado</strong>${escapeHtml(runStatusText(run))}</div><p class="muted">${escapeHtml(runDetails)}</p><p class="muted">Mensagens, ferramentas e aprovações aparecem no terminal ou na extensão oficial. Este painel acompanha o processo iniciado no terminal; uma instrução copiada só começa após ser enviada na extensão.</p>` : ''}
     <h2>Atividade observada</h2><div class="metric"><strong>Estado</strong>${escapeHtml(statusText(summary))}</div><div class="metric"><strong>Inícios no histórico local</strong>${summary.starts}</div><div class="metric"><strong>Último evento</strong>${escapeHtml(last)}</div>
     <p class="muted">O estado depende de hooks locais opcionais. “Uso observado recentemente” significa início sem parada registrada nos últimos 10 minutos; não é prova de que o processo ainda está ativo. O histórico guarda apenas horário, pasta, tipo e identificadores do agente.</p>
     <h2>Grafo de decisões</h2>${flowGraph(specInfo.spec)}
@@ -76,7 +85,7 @@ function render(item, root, specInfo, noteText, summary, nonce) {
     </body></html>`;
 }
 
-function openDashboard(vscode, context, element, logFile, onBuild) {
+function openDashboard(vscode, context, element, logFile, onBuild, options = {}) {
   const { item, root } = element;
   const key = `spec:${item.file}`;
   let linked = context.workspaceState.get(key);
@@ -88,10 +97,13 @@ function openDashboard(vscode, context, element, logFile, onBuild) {
     let noteText = '';
     try { noteText = fs.readFileSync(noteFile, 'utf8').slice(0, 5000); } catch (_) {}
     const summary = summarize(readRecords(logFile), item, root);
-    const state = JSON.stringify({ spec: specInfo.spec, noteText, summary });
+    const active = options.getRun?.();
+    const run = active && { status: active.status, platform: active.platform, preset: active.preset,
+      project: active.project, startedAt: active.startedAt, exitCode: active.exitCode, finishedAt: active.finishedAt };
+    const state = JSON.stringify({ spec: specInfo.spec, noteText, summary, run });
     if (state === lastState) return;
     lastState = state;
-    panel.webview.html = render(item, root, specInfo, noteText, summary, crypto.randomBytes(16).toString('hex'));
+    panel.webview.html = render(item, root, specInfo, noteText, summary, crypto.randomBytes(16).toString('hex'), run);
   };
   panel.webview.onDidReceiveMessage(async message => {
     try {
@@ -116,11 +128,14 @@ function openDashboard(vscode, context, element, logFile, onBuild) {
         if (info.file) await onBuild(info.file, root.path);
         else vscode.window.showInformationMessage('Vincule uma especificação da Forja primeiro.');
       }
+      if (message.action === 'runAgent' && options.onRun) await options.onRun();
+      if (message.action === 'focusTerminal' && options.onFocusTerminal) await options.onFocusTerminal();
       if (message.action === 'refresh') update();
     } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
   });
   const timer = setInterval(update, 10000);
-  panel.onDidDispose(() => clearInterval(timer));
+  const subscription = options.onDidChangeRun?.(file => { if (file === item.file) update(); });
+  panel.onDidDispose(() => { clearInterval(timer); subscription?.dispose(); });
   update();
   return panel;
 }

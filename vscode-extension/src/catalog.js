@@ -65,16 +65,22 @@ function collect(root, category) {
 function discover(workspaces, home, includeUser = true, builtIn = null) {
   const roots = workspaces.map(({ name, path: root }) => ({ name, path: root, scope: 'workspace' }));
   if (includeUser && home) roots.push({ name: 'Instalação do usuário', path: home, scope: 'user' });
-  return roots.map(root => ({
-    ...root,
-    groups: CATEGORIES.map(category => ({
+  return roots.map(root => {
+    const groups = CATEGORIES.map(category => ({
       id: category.id,
       label: category.label,
       items: category.id === 'scripts' && root.scope === 'workspace' && builtIn
         ? [...collect(root.path, category), { file: builtIn.file, label: 'Analisar diff estrutural', category: 'scripts', documentation: builtIn.documentation, builtIn: true }]
         : collect(root.path, category)
-    })).filter(group => group.items.length > 0)
-  })).filter(root => root.groups.length > 0);
+    })).filter(group => group.items.length > 0);
+    if (root.scope === 'workspace' && builtIn?.presets?.length) groups.push({
+      id: 'presets', label: 'Roteiros prontos', items: builtIn.presets.map(preset => ({
+        file: builtIn.presetDocumentation, label: preset.label, detail: preset.detail,
+        category: 'agentPreset', preset: preset.id, builtIn: true
+      }))
+    });
+    return { ...root, groups };
+  }).filter(root => root.groups.length > 0);
 }
 
 const TEMPLATES = {

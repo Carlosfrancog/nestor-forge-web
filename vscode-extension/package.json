@@ -2,7 +2,7 @@
   "name": "agentorchestra",
   "displayName": "AgentOrchestra",
   "description": "Explore agentes e skills, crie com a Forja e analise mudanças do projeto.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "nestor-forge",
   "icon": "media/agents.png",
   "engines": {
@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/share.js && node --check src/structural.js && node --check src/diffAst.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
+    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/share.js && node --check src/structural.js && node --check src/diffAst.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
     "vscode:prepublish": "python ../scripts/bundle_extension_backend.py"
   },
   "contributes": {
@@ -111,6 +111,15 @@
         "command": "agentOrchestra.importPackage",
         "title": "AgentOrchestra: Importar pacote de agente",
         "icon": "$(cloud-download)"
+      },
+      {
+        "command": "agentOrchestra.runAgent",
+        "title": "AgentOrchestra: Executar agente",
+        "icon": "$(play)"
+      },
+      {
+        "command": "agentOrchestra.agentRunInstructions",
+        "title": "AgentOrchestra: Ler roteiros prontos"
       }
     ],
     "menus": {
@@ -177,6 +186,11 @@
           "command": "agentOrchestra.importPackage",
           "when": "view == agentOrchestra.files",
           "group": "navigation@5"
+        },
+        {
+          "command": "agentOrchestra.runAgent",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@6"
         }
       ],
       "view/item/context": [
@@ -224,6 +238,21 @@
           "command": "agentOrchestra.shareAgent",
           "when": "view == agentOrchestra.files && viewItem == orchestraAgent",
           "group": "inline@1"
+        },
+        {
+          "command": "agentOrchestra.runAgent",
+          "when": "view == agentOrchestra.files && viewItem == orchestraAgent",
+          "group": "inline@0"
+        },
+        {
+          "command": "agentOrchestra.runAgent",
+          "when": "view == agentOrchestra.files && viewItem == orchestraPreset",
+          "group": "inline@0"
+        },
+        {
+          "command": "agentOrchestra.agentRunInstructions",
+          "when": "view == agentOrchestra.files && viewItem == orchestraPreset",
+          "group": "navigation@1"
         }
       ]
     },
@@ -244,6 +273,16 @@
           "type": "string",
           "default": "node",
           "description": "Executável Node.js para o analisador integrado e scripts JavaScript."
+        },
+        "agentOrchestra.claudePath": {
+          "type": "string",
+          "default": "claude",
+          "description": "Executável Claude Code para iniciar agentes no terminal integrado."
+        },
+        "agentOrchestra.codexPath": {
+          "type": "string",
+          "default": "codex",
+          "description": "Executável Codex CLI para iniciar agentes no terminal integrado."
         },
         "agentOrchestra.goPath": {
           "type": "string",

@@ -7,7 +7,7 @@ Extensão local para explorar agentes e skills, criar agentes com a Nestor Forge
 - Agentes Codex (`.codex/agents/*.toml`) e Claude (`.claude/agents/*.md`).
 - Skills em `.agents`, `.codex` e `.claude`, rotas da Forja e instruções `AGENTS.md`/`CLAUDE.md`.
 - Especificações da Forja em `.agentorchestra/specs/*.json`.
-- **Scripts de skills** em `skills/<nome>/scripts` e o analisador integrado **Analisar diff estrutural**.
+- **Scripts de skills** em `skills/<nome>/scripts`, o analisador integrado **Analisar diff estrutural** e uma seção **Roteiros prontos** para iniciar agentes.
 
 Clique em um Markdown para abrir sua prévia em modo de leitura. No menu de contexto há ações para editar, abrir o painel, ler instruções ou executar um script manualmente.
 
@@ -35,6 +35,14 @@ Também é possível importar ZIPs antigos que contenham `AGENT.md` ou `agent.md
 
 Arquivos existentes no destino bloqueiam a importação, sem sobrescrita. Referências relativas para arquivos fora dessas pastas e referências absolutas ao projeto de origem exigem ajuste antes da exportação. A operação depende do Python configurado em `agentOrchestra.pythonPath`.
 
+## Executar agentes com roteiros prontos
+
+Clique em **Executar agente** na linha de um agente Claude ou Codex, no painel do agente ou na barra da árvore. Você também pode clicar diretamente em um item da seção **Roteiros prontos** e escolher o agente. Há missão livre, revisão de alterações, investigação de bug, criação de testes, documentação e auditoria passiva de segurança. Informe o foco da tarefa e escolha o destino.
+
+No **terminal integrado**, a extensão inicia uma sessão interativa do CLI no projeto e abre o painel do agente. O Claude recebe o agente pelo parâmetro `--agent`; o Codex recebe uma instrução para delegar a tarefa ao subagente personalizado. A conversa, ferramentas e aprovações ficam no terminal, enquanto o painel e a árvore acompanham o processo e seu código de saída. O painel não confunde esse estado com os sinais opcionais dos hooks.
+
+Na opção **extensão oficial**, o AgentOrchestra abre Claude Code ou Codex no VS Code e copia a instrução para colar e enviar. Como não há uma API pública estável para enviar a mensagem às extensões, essa opção é uma preparação manual e aparece assim no painel. Para executar imediatamente, escolha o terminal. Leia os detalhes em `scripts/AGENT_RUNS.md`. Os executáveis podem ser definidos em `agentOrchestra.claudePath` e `agentOrchestra.codexPath`.
+
 ## Scripts de skills e análise de diff
 
 Scripts `.py`, `.js`, `.mjs`, `.cjs`, `.go`, `.sh` e `.ps1` são descobertos sob `scripts/` de cada skill. Clique no script para ler o `SKILL.md`. A opção **Executar script manualmente** solicita argumentos em uma lista JSON e abre uma tarefa do VS Code. A execução exige um projeto confiável e é iniciada pelo desenvolvedor.
@@ -49,9 +57,9 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.3.1.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.4.0.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.3.1.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.3.1.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.4.0.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.4.0.vsix` na raiz do repositório.
 
 Se você instalou a extensão anterior **Nestor Agents**, remova-a para não manter dois ícones. O identificador atual é `nestor-forge.agentorchestra`.
