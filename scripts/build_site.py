@@ -1,5 +1,6 @@
 """Monta o site estático com uma cópia gerada do compilador Python."""
 from pathlib import Path
+import hashlib
 import json
 import shutil
 import zipfile
@@ -20,14 +21,33 @@ def build_site(output: Path = OUTPUT) -> Path:
 
     vsix_name = f"agentorchestra-{version}.vsix"
     vsix = ROOT / "dist" / vsix_name
+    update_manifest = output / "updates" / "agentorchestra.json"
+    update_manifest.unlink(missing_ok=True)
+    downloads = output / "downloads"
+    if downloads.is_dir():
+        for previous in downloads.glob("agentorchestra-*.vsix"):
+            previous.unlink()
     if vsix.is_file():
         with zipfile.ZipFile(vsix) as package:
             packaged = json.loads(package.read("extension/package.json"))
         if packaged.get("version") != version or packaged.get("name") != manifest["name"]:
             raise ValueError(f"O pacote VSIX não corresponde ao manifesto da extensão: {vsix}")
-        download = output / "downloads" / vsix_name
+        download = downloads / vsix_name
         download.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(vsix, download)
+        updates = output / "updates"
+        updates.mkdir(parents=True, exist_ok=True)
+        release = {
+            "schemaVersion": 1,
+            "extensionId": f"{manifest['publisher']}.{manifest['name']}",
+            "version": version,
+            "url": f"../downloads/{vsix_name}",
+            "sha256": hashlib.sha256(vsix.read_bytes()).hexdigest(),
+            "size": vsix.stat().st_size,
+        }
+        update_manifest.write_text(
+            json.dumps(release, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         action = (
             f'<a class="extension-download" href="./downloads/{vsix_name}" download>'
             'Baixar VSIX <span aria-hidden="true">↓</span></a>'

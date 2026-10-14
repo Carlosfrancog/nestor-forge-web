@@ -146,6 +146,19 @@ class ForgeOutputTests(unittest.TestCase):
                 {path.name for path in (output / "nestor_forge").glob("*.py")},
                 {"__init__.py", "compiler.py", "domain.py", "renderers.py", "targets.py"},
             )
+            update_manifest = output / "updates" / "agentorchestra.json"
+            version = json.loads((root / "vscode-extension" / "package.json").read_text(encoding="utf-8"))["version"]
+            package = root / "dist" / f"agentorchestra-{version}.vsix"
+            if package.is_file():
+                import hashlib
+                release = json.loads(update_manifest.read_text(encoding="utf-8"))
+                self.assertEqual(release["version"], version)
+                self.assertEqual(release["extensionId"], "nestor-forge.agentorchestra")
+                self.assertEqual(release["url"], f"../downloads/agentorchestra-{version}.vsix")
+                self.assertEqual(release["sha256"], hashlib.sha256(package.read_bytes()).hexdigest())
+                self.assertEqual(release["size"], package.stat().st_size)
+            else:
+                self.assertFalse(update_manifest.exists())
 
     def test_compiler_and_writer_preserve_existing_output(self):
         artifacts = ForgeCompiler().compile(base_spec())
