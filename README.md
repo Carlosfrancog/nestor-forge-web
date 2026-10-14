@@ -4,6 +4,15 @@ Plano de integrações com Claude Cowork, plugins e CLI: [docs/INTEGRACOES.md](d
 
 Para outro agente consultar as perguntas, responder por JSON e receber um relatório compacto sem abrir o assistente, use [o executor para agentes](docs/AGENT_RUNNER.md).
 
+Para inspecionar mudanças de código Python por AST e criar commits com caminhos explícitos sem enviar diffs ou logs ao agente:
+
+```powershell
+python -B scripts/commit_ast.py inspect
+python -B scripts/commit_ast.py commit -m "feat: descrever mudança" --path caminho/arquivo.py
+```
+
+O comando `inspect` retorna JSON compacto com funções, métodos e classes alterados. O comando `commit` recusa arquivos staged preexistentes e candidatos com alertas de privacidade. Arquivos não Python recebem apenas metadados; revise seu conteúdo antes de incluí-los. O script não faz push.
+
 ## Arquitetura Python
 
 O projeto usa um núcleo de compilação com adaptadores de entrada e saída:
