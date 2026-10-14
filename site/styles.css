@@ -92,6 +92,8 @@ h1 {
 }
 
 .intro-copy { max-width: 645px; margin-bottom: 0; color: #4d534c; font-size: 16px; line-height: 1.5; }
+.intro-link { display: inline-flex; gap: 9px; align-items: center; margin-top: 17px; color: var(--accent); font-size: 13px; font-weight: 700; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.intro-link:hover { color: var(--ink); }
 .intro-index { flex: none; color: #858982; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
 
 .workspace {
@@ -227,6 +229,30 @@ h1 {
 .prompt-preview { width: 100%; height: 210px; padding: 11px; resize: vertical; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 12px/1.55 'Courier New', monospace; }
 .privacy-note { margin: 23px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
+.extension-section { padding: 32px 0 42px; margin: 12px 0 38px; border-top: 2px solid var(--ink); scroll-margin-top: 20px; }
+.extension-heading { display: flex; align-items: center; gap: 19px; margin-bottom: 23px; }
+.extension-icon { flex: 0 0 72px; border-radius: 16px; }
+.extension-heading .step { margin-bottom: 7px; }
+.extension-heading h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(29px, 3vw, 40px); letter-spacing: -.045em; }
+.extension-heading h2 span { color: var(--muted); font: 700 12px/1 'Courier New', monospace; letter-spacing: 0; white-space: nowrap; }
+.extension-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); gap: 46px; }
+.extension-copy { max-width: 640px; color: #4d534c; font-size: 16px; line-height: 1.55; }
+.extension-features { padding-left: 19px; margin: 22px 0 0; }
+.extension-features li { padding: 5px 0; line-height: 1.45; }
+.extension-features li::marker { color: var(--accent); }
+.extension-install { padding: 22px 24px 20px; border: 1px solid var(--line); background: var(--surface); }
+.extension-install h3 { margin: 0 0 17px; font-size: 17px; }
+.extension-install ol { padding-left: 20px; margin: 0; }
+.extension-install li { padding: 0 0 10px 4px; font-size: 14px; line-height: 1.45; }
+.extension-install li::marker { color: var(--accent); font-weight: 700; }
+.extension-install kbd { padding: 2px 5px; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); font: 12px 'Courier New', monospace; white-space: nowrap; }
+.extension-actions { margin-top: 13px; }
+.extension-download { display: flex; justify-content: space-between; align-items: center; min-height: 49px; padding: 11px 14px; background: var(--ink); color: var(--surface); font-weight: 700; text-decoration: none; }
+.extension-download:hover { background: var(--accent); }
+.extension-download span { font-size: 20px; font-weight: 400; }
+.extension-unavailable { padding: 10px 12px; margin: 0; border: 1px solid var(--line); font-size: 13px; line-height: 1.45; }
+.extension-note { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+
 footer { display: flex; justify-content: space-between; gap: 16px; padding: 23px 0 29px; border-top: 1px solid var(--ink); color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
@@ -236,6 +262,7 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding: 23px
   .editor-panel { padding-right: 0; padding-bottom: 36px; }
   .output-panel { position: static; padding: 29px 0 42px; border-top: 2px solid var(--ink); border-left: 0; }
   .intro-index { display: none; }
+  .extension-grid { grid-template-columns: 1fr; gap: 18px; }
 }
 
 @media (max-width: 600px) {
@@ -252,5 +279,10 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding: 23px
   .tabs { margin-left: auto; }
   .form-grid, .switches { grid-template-columns: 1fr; gap: 0; }
   .details summary span { display: none; }
+  .extension-section { padding-top: 26px; }
+  .extension-heading { gap: 13px; align-items: flex-start; }
+  .extension-icon { width: 54px; height: 54px; flex-basis: 54px; border-radius: 12px; }
+  .extension-heading h2 span { display: block; margin-top: 5px; }
+  .extension-install { padding: 19px 17px; }
   footer { flex-direction: column; font-size: 10px; }
 }

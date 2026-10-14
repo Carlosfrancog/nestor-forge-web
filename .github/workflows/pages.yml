@@ -22,6 +22,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Empacotar AgentOrchestra
+        run: |
+          npm ci --prefix vscode-extension
+          python -m unittest discover -s vscode-extension/test -p '*share*.py'
+          version=$(node -p "require('./vscode-extension/package.json').version")
+          cd vscode-extension
+          npx --yes @vscode/vsce package --out "../dist/agentorchestra-$version.vsix"
       - name: Montar site
         run: python scripts/build_site.py
       - uses: actions/configure-pages@v5
