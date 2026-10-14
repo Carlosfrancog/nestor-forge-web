@@ -1,0 +1,304 @@
+/* Visual layer for the Forge workspace. The base stylesheet keeps component behavior. */
+:root {
+  --paper: #f0f4f3;
+  --surface: #ffffff;
+  --ink: #14292d;
+  --muted: #586b70;
+  --line: #d5e0df;
+  --accent: #087a70;
+  --accent-deep: #075d56;
+  --mint: #d9f2e9;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--paper);
+}
+
+body {
+  background: radial-gradient(circle at 85% 5%, #dcefeb 0, transparent 27rem), var(--paper);
+}
+
+.shell { width: min(100% - 64px, 1360px); }
+
+.topbar {
+  min-height: 86px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  gap: 11px;
+  font-family: inherit;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -.045em;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow: 0 6px 16px #14292d29;
+  font: 800 12px/1 ui-monospace, monospace;
+}
+
+.version {
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffffb8;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .1em;
+}
+
+.intro {
+  align-items: center;
+  min-height: 284px;
+  margin-top: 28px;
+  padding: 43px 50px;
+  border: 0;
+  border-radius: 28px;
+  background: radial-gradient(circle at 76% 25%, #257b73 0, transparent 26rem), linear-gradient(135deg, #11272d, #164d49);
+  box-shadow: 0 20px 44px #183b3a1c;
+  color: #fff;
+  overflow: hidden;
+}
+
+.eyebrow {
+  margin-bottom: 18px;
+  color: #9ee8cf;
+  font-size: 11px;
+  letter-spacing: .16em;
+}
+
+.eyebrow span { color: #88aaa7; }
+
+h1 {
+  margin-bottom: 13px;
+  font-family: inherit;
+  font-size: clamp(39px, 4.5vw, 66px);
+  font-weight: 750;
+  letter-spacing: -.065em;
+  line-height: 1.04;
+}
+
+.intro-copy {
+  max-width: 600px;
+  color: #d3e3e1;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.intro-link {
+  min-height: 38px;
+  margin-top: 23px;
+  padding: 0 15px;
+  border: 1px solid #9ad9ca80;
+  border-radius: 999px;
+  color: #dbfff1;
+  font-size: 12px;
+  text-decoration: none;
+  transition: background .2s, border-color .2s;
+}
+
+.intro-link:hover { border-color: #dbfff1; background: #ffffff1a; color: #fff; }
+
+.intro-index {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 236px;
+  height: 170px;
+  padding: 20px;
+  border: 1px solid #bce9df63;
+  border-radius: 19px;
+  background: linear-gradient(135deg, #ffffff1b, #ffffff05);
+  box-shadow: 20px 20px 0 #ffffff0d;
+  color: #c7f6e8;
+  font-size: 12px;
+  letter-spacing: .12em;
+  transform: rotate(5deg);
+}
+
+.intro-index::before {
+  content: "{  }";
+  position: absolute;
+  align-self: flex-start;
+  color: #9fe0ca;
+  font: 500 43px/1 ui-monospace, monospace;
+  letter-spacing: .18em;
+}
+
+.workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 380px);
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 13px 34px #2148460a;
+}
+
+.editor-panel { padding: 33px 38px 40px; }
+.output-panel { top: 20px; padding: 33px 29px 29px; border: 1px solid #bedcd4; background: #eaf5f1; }
+.panel-heading { align-items: center; gap: 12px; margin-bottom: 27px; }
+.panel-heading .step { margin-bottom: 8px; }
+.panel h2 { font-size: 27px; font-weight: 750; letter-spacing: -.045em; }
+.step { color: var(--accent-deep); font-size: 11px; letter-spacing: .12em; }
+
+.tabs {
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #f3f7f6;
+}
+
+.tab {
+  min-width: 76px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+.tab.active { border: 0; background: #fff; box-shadow: 0 2px 7px #173b3823; color: var(--accent-deep); }
+.tab:hover { color: var(--accent-deep); }
+.form-grid { gap: 18px; }
+.field { gap: 9px; margin-bottom: 20px; }
+.field > span { color: #263b3d; font-size: 13px; font-weight: 700; }
+.field em, .field small { color: #728185; }
+
+.field input, .field select, .field textarea, .code-editor {
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #c9d7d5;
+  border-radius: 11px;
+  background: #fbfdfc;
+  transition: border-color .18s, box-shadow .18s, background .18s;
+}
+
+.field textarea { line-height: 1.5; }
+.field input:hover, .field select:hover, .field textarea:hover, .code-editor:hover { border-color: #91b5ae; }
+.field input::placeholder, .field textarea::placeholder { color: #788a8e; }
+.field input:focus, .field select:focus, .field textarea:focus, .code-editor:focus {
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 4px #087a7024;
+}
+
+.details { margin-top: 9px; border: 1px solid var(--line); border-radius: 12px; background: #fbfdfc; }
+.details:last-child { border: 1px solid var(--line); }
+.details summary { min-height: 57px; padding: 0 16px; }
+.details summary::before { font-size: 22px; }
+.details-content { padding: 0 16px 16px; }
+.details[open] { background: #fff; }
+.code-editor { min-height: 480px; }
+.switch { align-items: center; }
+.switch input { accent-color: var(--accent); }
+
+.destination { gap: 10px; }
+.destination-option, .destination-option:last-child {
+  min-height: 74px;
+  padding: 12px 13px;
+  border: 1px solid #c7ddd5;
+  border-radius: 12px;
+  background: #ffffff9c;
+  transition: border-color .18s, background .18s, transform .18s;
+}
+
+.destination-option:hover { border-color: #72b5a5; transform: translateY(-1px); }
+.destination-option.selected {
+  padding-left: 10px;
+  border: 2px solid var(--accent);
+  border-left: 5px solid var(--accent);
+  background: #fff;
+  box-shadow: 0 5px 15px #0b675520;
+}
+
+.destination-option strong { font-size: 14px; }
+.destination-option small { color: #62777a; }
+.output-divider { margin: 26px 0 22px; background: #c4dbd4; }
+.package-list { margin-bottom: 24px; }
+.package-list li { padding: 7px 0; font-size: 13px; }
+.package-list span { color: var(--accent-deep); }
+
+.primary-button, .download-button { min-height: 54px; padding: 12px 18px; border-radius: 11px; }
+.primary-button { border-color: var(--ink); background: var(--ink); box-shadow: 0 8px 16px #0d414326; }
+.primary-button:hover { border-color: var(--accent-deep); background: var(--accent-deep); }
+.download-button { border-color: var(--accent); color: var(--accent-deep); }
+.download-button:hover { background: #f1fcf8; }
+.status { font-size: 12px; }
+.privacy-note { padding-top: 19px; border-top: 1px solid #c4dbd4; color: #536b6e; }
+
+.extension-section {
+  padding: 40px;
+  margin: 24px 0 40px;
+  border: 0;
+  border-radius: 24px;
+  background: #142c31;
+  color: #fff;
+}
+
+.extension-heading { margin-bottom: 28px; }
+.extension-icon { border-radius: 17px; box-shadow: 0 10px 22px #0004; }
+.extension-heading .step { color: #9ee8cf; }
+.extension-heading h2 { font-family: inherit; font-size: clamp(28px, 3vw, 42px); }
+.extension-heading h2 span { color: #a9c8c5; }
+.extension-grid { gap: 42px; }
+.extension-copy { color: #d1e2df; }
+.extension-features li { color: #e0eeeb; }
+.extension-features li::marker { color: #7fddbe; }
+.extension-install { border: 1px solid #d5e8e2; border-radius: 17px; color: var(--ink); box-shadow: 0 12px 26px #0002; }
+.extension-download { border-radius: 10px; }
+.extension-unavailable { border-radius: 10px; }
+.extension-note a { color: var(--accent-deep); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+footer { border-top-color: var(--line); }
+
+:is(.brand, .intro-link, .tab, .text-button, .primary-button, .download-button, .extension-download, .prompt-header button, .details summary):focus-visible {
+  outline: 3px solid #4bb9a2;
+  outline-offset: 3px;
+}
+
+@media (max-width: 940px) {
+  .shell { width: min(100% - 44px, 760px); }
+  .workspace { grid-template-columns: 1fr; }
+  .editor-panel { padding: 30px; }
+  .output-panel { padding: 30px; border: 1px solid #bedcd4; }
+  .intro-index { display: none; }
+  .extension-grid { gap: 22px; }
+}
+
+@media (max-width: 600px) {
+  .shell { width: calc(100% - 28px); }
+  .topbar { min-height: 72px; }
+  .brand { font-size: 17px; }
+  .brand-mark { width: 36px; height: 36px; font-size: 10px; }
+  .version { max-width: 116px; padding: 7px 9px; font-size: 9px; line-height: 1.4; }
+  .intro { min-height: 0; margin-top: 17px; padding: 29px 25px 32px; border-radius: 19px; }
+  h1 { font-size: clamp(38px, 11vw, 49px); }
+  .intro-copy { font-size: 14px; line-height: 1.6; }
+  .workspace { gap: 16px; margin-top: 16px; }
+  .panel { border-radius: 17px; }
+  .editor-panel, .output-panel { padding: 24px 19px; }
+  .panel-heading { align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+  .panel h2 { font-size: 23px; }
+  .tabs { margin-left: 0; }
+  .tab { min-width: 65px; padding-inline: 7px; }
+  .form-grid, .switches { gap: 0; }
+  .details summary span { display: none; }
+  .extension-section { padding: 26px 20px; margin: 18px 0 26px; border-radius: 18px; }
+  .extension-heading { gap: 13px; }
+  .extension-icon { width: 52px; height: 52px; flex-basis: 52px; }
+  .extension-heading h2 { font-size: 27px; }
+  .extension-install { padding: 19px 17px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-link, .field input, .field select, .field textarea, .code-editor, .destination-option { transition: none; }
+}
