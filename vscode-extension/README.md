@@ -31,6 +31,8 @@ Passe o mouse sobre um agente ou skill na árvore e clique no ícone **Compartil
 
 O pacote inclui um manifesto com hashes, os arquivos do agente e um `install.sh` para instalação manual com `sh install.sh /caminho/do/projeto` após extrair o ZIP. A extensão valida o manifesto e instala os arquivos diretamente; ela não executa scripts recebidos. A estrutura relativa de `.agents`, `.claude`, `.codex` e da especificação da Forja é preservada, mantendo as referências locais geradas pela Forja. Scripts e arquivos internos das skills acompanham o pacote.
 
+Também é possível importar ZIPs antigos que contenham `AGENT.md` ou `agent.md` na pasta principal, como pacotes da Forja. Antes de instalar, a extensão mostra os arquivos de destino; ela cria a skill central e as entradas de agente para Claude e Codex, mantendo os arquivos e links internos do ZIP. Outros formatos precisam ser convertidos ou exportados pelo AgentOrchestra.
+
 Arquivos existentes no destino bloqueiam a importação, sem sobrescrita. Referências relativas para arquivos fora dessas pastas e referências absolutas ao projeto de origem exigem ajuste antes da exportação. A operação depende do Python configurado em `agentOrchestra.pythonPath`.
 
 ## Scripts de skills e análise de diff
@@ -47,9 +49,9 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.3.0.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.3.1.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.3.0.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.3.0.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.3.1.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.3.1.vsix` na raiz do repositório.
 
 Se você instalou a extensão anterior **Nestor Agents**, remova-a para não manter dois ícones. O identificador atual é `nestor-forge.agentorchestra`.

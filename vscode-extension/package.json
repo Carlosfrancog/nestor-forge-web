@@ -2,7 +2,7 @@
   "name": "agentorchestra",
   "displayName": "AgentOrchestra",
   "description": "Explore agentes e skills, crie com a Forja e analise mudanças do projeto.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "nestor-forge",
   "icon": "media/agents.png",
   "engines": {

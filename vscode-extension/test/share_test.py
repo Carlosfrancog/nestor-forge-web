@@ -137,6 +137,45 @@ class SharePackageTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Caminho inválido"):
             export_package(self.source, agent, self.base / "reviewer.zip")
 
+    def test_imports_legacy_agent_zip_and_preserves_relative_links(self) -> None:
+        archive = self.base / "old-agent.zip"
+        with zipfile.ZipFile(archive, "w") as package:
+            package.writestr("old/AGENT.md", "# Nestor Claws — Auditor\n\nLeia [a política](policies/permissions.md).\n")
+            package.writestr("old/policies/permissions.md", "# Permissões\n")
+            package.writestr("old/scripts/audit.py", "print('audit')\n")
+        preview = inspect_package(archive, self.target)
+        self.assertEqual(preview["format"], "legacy")
+        self.assertEqual(preview["entrypoint"], ".claude/agents/nestor-claws.md")
+        self.assertEqual(preview["conflicts"], [])
+        result = import_package(archive, self.target)
+        self.assertEqual(len(result["files"]), 7)
+        self.assertTrue((self.target / ".agents/skills/nestor-claws/AGENT.md").is_file())
+        self.assertTrue((self.target / ".agents/skills/nestor-claws/policies/permissions.md").is_file())
+        self.assertTrue((self.target / ".agents/skills/nestor-claws/scripts/audit.py").is_file())
+        self.assertTrue((self.target / ".codex/agents/nestor-claws.toml").is_file())
+        roundtrip = self.base / "roundtrip.zip"
+        export_package(self.target, self.target / ".claude/agents/nestor-claws.md", roundtrip)
+        manifest, copied = read_package(roundtrip)
+        self.assertEqual(manifest["entrypoint"], ".claude/agents/nestor-claws.md")
+        self.assertIn(".agents/skills/nestor-claws/policies/permissions.md", copied)
+        with self.assertRaisesRegex(ValueError, "Arquivos existentes"):
+            import_package(archive, self.target)
+
+    def test_rejects_unsafe_or_ambiguous_legacy_zip(self) -> None:
+        archive = self.base / "unsafe.zip"
+        with zipfile.ZipFile(archive, "w") as package:
+            package.writestr("old/AGENT.md", "# Agent\n")
+            package.writestr("old/../escape.md", "bad")
+        with self.assertRaisesRegex(ValueError, "Caminho inválido"):
+            inspect_package(archive, self.target)
+        self.assertFalse((self.target / ".claude").exists())
+
+        archive = self.base / "unknown.zip"
+        with zipfile.ZipFile(archive, "w") as package:
+            package.writestr("old/README.md", "# Agent\n")
+        with self.assertRaisesRegex(ValueError, "Formato de ZIP não reconhecido"):
+            inspect_package(archive, self.target)
+
     @unittest.skipUnless(os.name != "nt" and shutil.which("sh"), "Requer shell POSIX")
     def test_manual_shell_installer_uses_project_relative_paths(self) -> None:
         archive = self.base / "orders.zip"

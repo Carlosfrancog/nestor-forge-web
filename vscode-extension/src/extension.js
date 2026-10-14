@@ -245,6 +245,13 @@ async function importAgentPackage(context, provider) {
     const archive = selected[0].fsPath;
     const review = await sharing.inspectPackage(setting('pythonPath'), context.extensionPath, archive, folder.uri.fsPath);
     if (review.conflicts.length) throw new Error(`Arquivos existentes no destino: ${review.conflicts.slice(0, 8).join(', ')}`);
+    const source = review.format === 'legacy' ? 'ZIP de agente convertido' : 'Pacote AgentOrchestra';
+    const approved = await vscode.window.showInformationMessage(
+      `Instalar ${source} em ${folder.name}?`,
+      { modal: true, detail: `${review.files.length} arquivo(s). Entrada: ${review.entrypoint}\n\n${review.files.slice(0, 12).join('\n')}${review.files.length > 12 ? '\n…' : ''}` },
+      'Instalar'
+    );
+    if (approved !== 'Instalar') return;
     const result = await sharing.importPackage(setting('pythonPath'), context.extensionPath, archive, folder.uri.fsPath);
     provider.refresh();
     vscode.window.showInformationMessage(`Agente importado em ${folder.name} (${result.files.length} arquivo(s)).`);

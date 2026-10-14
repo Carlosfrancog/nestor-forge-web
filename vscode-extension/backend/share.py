@@ -11,6 +11,7 @@ import re
 import shlex
 import stat
 import sys
+import unicodedata
 import zipfile
 
 
@@ -123,7 +124,7 @@ def local_references(relative: str, content: str) -> set[str]:
             continue
         target = str(PurePosixPath(relative).parent.joinpath(link))
         normalized = os.path.normpath(target.replace("/", os.sep)).replace(os.sep, "/")
-        references.add(valid_path(normalized))
+        references.add(valid_path(normalized) + ("/" if link.endswith("/") else ""))
     if relative.startswith(".agents/routes/"):
         for match in re.finditer(r"(?m)^\s*(?:skill|agent)\s*=\s*[\"']([^\"']+)[\"']", content):
             references.add(valid_path(match.group(1)))
@@ -174,14 +175,28 @@ def collect(root: Path, entry: Path) -> tuple[str, dict[str, bytes]]:
                     raise ValueError(f"Skill exigida pelo agente não encontrada: {name}")
 
     pending = list(files)
+    processed: set[str] = set()
     while pending:
         relative = pending.pop()
+        if relative in processed:
+            continue
+        processed.add(relative)
         if not relative.endswith((".md", ".toml")):
             continue
         content = (root / relative).read_text(encoding="utf-8")
         if str(root) in content:
             raise ValueError(f"Referência absoluta ao projeto de origem em {relative}; use caminhos relativos antes de compartilhar.")
         for reference in local_references(relative, content):
+            if reference.endswith("/"):
+                directory = root / reference[:-1]
+                if not directory.is_dir():
+                    raise ValueError(f"Diretório referenciado ausente: {reference}")
+                known = set(files)
+                add_tree(root, reference[:-1], files)
+                if not any(value.startswith(reference) for value in files):
+                    raise ValueError(f"Diretório referenciado vazio: {reference}")
+                pending.extend(files - known)
+                continue
             if reference not in files:
                 add_file(root, reference, files)
                 pending.append(reference)
@@ -237,6 +252,68 @@ def export_package(root: Path, entry: Path, output: Path) -> dict:
     return {"ok": True, "entrypoint": selected, "files": list(payload), "archive": str(output)}
 
 
+def legacy_package(archive: zipfile.ZipFile, infos: list[zipfile.ZipInfo]) -> tuple[dict, dict[str, bytes]]:
+    """Adapta um ZIP de agente com AGENT.md ou agent.md na pasta principal."""
+    files = [item for item in infos if not item.is_dir()]
+    if len(files) > MAX_FILES - 4:
+        raise ValueError("O ZIP contém arquivos demais para importar como agente.")
+    names = [item.filename for item in files]
+    for name in names:
+        if name.startswith("/") or "\\" in name or len(name) > 300:
+            raise ValueError(f"Caminho inválido no ZIP: {name!r}")
+        parts = name.split("/")
+        if any(not part or part in (".", "..") or part.endswith((" ", "."))
+               or BAD_SEGMENT.search(part) or WINDOWS_RESERVED.match(part) for part in parts):
+            raise ValueError(f"Caminho inválido no ZIP: {name!r}")
+    roots = {name.split("/", 1)[0] for name in names if "/" in name}
+    prefix = next(iter(roots)) + "/" if len(roots) == 1 and all(name.startswith(next(iter(roots)) + "/") for name in names) else ""
+    relative_names = [name[len(prefix):] for name in names]
+    if len(relative_names) != len(set(name.casefold() for name in relative_names)):
+        raise ValueError("O ZIP contém caminhos duplicados.")
+    entries = [name for name in relative_names if name.lower() in ("agent.md", "skill.md")]
+    if len(entries) != 1:
+        raise ValueError("Formato de ZIP não reconhecido: é necessário AGENT.md ou agent.md na pasta principal.")
+    primary = entries[0]
+    if primary.lower() == "skill.md":
+        raise ValueError("Skills com SKILL.md devem ser exportadas pelo AgentOrchestra antes da importação.")
+    source = archive.read(names[relative_names.index(primary)]).decode("utf-8-sig")
+    heading = re.search(r"(?m)^#\s+(.+?)\s*$", source)
+    title = heading.group(1).strip() if heading else PurePosixPath(prefix.rstrip("/")).name or "Agente importado"
+    short_title = re.split(r"\s+[—–:]\s+|\s+-\s+", title, maxsplit=1)[0]
+    ascii_title = unicodedata.normalize("NFKD", short_title).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_title.lower()).strip("-")[:60].rstrip("-") or "agente"
+    base = f".agents/skills/{slug}"
+    payload = {f"{base}/{relative}": archive.read(name) for name, relative in zip(names, relative_names)}
+    description = f"Agente importado: {title}"[:200]
+    payload[f"{base}/SKILL.md"] = (
+        f"---\nname: {slug}\ndescription: {json.dumps(description, ensure_ascii=False)}\n---\n\n"
+        f"# {title}\n\nLeia [a instrução principal]({primary}) e os arquivos relacionados antes de agir.\n"
+    ).encode("utf-8")
+    canonical = f"{base}/SKILL.md"
+    payload[f".claude/skills/{slug}/SKILL.md"] = (
+        f"---\nname: {slug}\ndescription: {json.dumps(description, ensure_ascii=False)}\n---\n\n"
+        f"Leia [a instrução central](../../../{canonical}) e siga suas regras.\n"
+    ).encode("utf-8")
+    payload[f".claude/agents/{slug}.md"] = (
+        f"---\nname: {slug}\ndescription: {json.dumps(description, ensure_ascii=False)}\n"
+        f"skills:\n  - {slug}\n---\n\n# {title}\n\nLeia {canonical} antes de agir.\n"
+    ).encode("utf-8")
+    payload[f".codex/agents/{slug}.toml"] = (
+        f"name = {json.dumps(slug)}\n"
+        f"description = {json.dumps(description, ensure_ascii=False)}\n"
+        f"developer_instructions = {json.dumps('Leia ' + canonical + ' na raiz do projeto e siga todas as instruções e limites antes de agir.', ensure_ascii=False)}\n"
+    ).encode("utf-8")
+    if len(payload) > MAX_FILES or sum(map(len, payload.values())) > MAX_TOTAL:
+        raise ValueError("O agente excede os limites de tamanho ou arquivos.")
+    if len(payload) != len(set(value.casefold() for value in payload)):
+        raise ValueError("O ZIP gera caminhos duplicados no projeto.")
+    for relative in payload:
+        valid_path(relative)
+    manifest = {"schemaVersion": SCHEMA, "entrypoint": f".claude/agents/{slug}.md",
+                "format": "legacy", "files": [{"path": key} for key in payload]}
+    return manifest, payload
+
+
 def read_package(archive_file: Path) -> tuple[dict, dict[str, bytes]]:
     if not archive_file.is_file() or archive_file.stat().st_size > MAX_ARCHIVE:
         raise ValueError("Pacote ausente ou acima do limite de 12 MiB.")
@@ -245,37 +322,18 @@ def read_package(archive_file: Path) -> tuple[dict, dict[str, bytes]]:
         names = [item.filename for item in infos]
         if len(names) != len(set(name.casefold() for name in names)):
             raise ValueError("O ZIP contém caminhos duplicados.")
-        if MANIFEST not in names or "install.sh" not in names:
-            raise ValueError("Este ZIP não é um pacote AgentOrchestra.")
-        if any(item.is_dir() or stat.S_ISLNK(item.external_attr >> 16) for item in infos):
-            raise ValueError("Diretórios e links simbólicos não são aceitos no ZIP.")
+        if any(stat.S_ISLNK(item.external_attr >> 16) for item in infos):
+            raise ValueError("Links simbólicos não são aceitos no ZIP.")
         if sum(item.file_size for item in infos) > MAX_TOTAL + 128 * 1024 or len(infos) > MAX_FILES + 2:
             raise ValueError("Pacote excede os limites de tamanho ou arquivos.")
-        manifest = json.loads(archive.read(MANIFEST))
-        if not isinstance(manifest, dict) or manifest.get("schemaVersion") != SCHEMA or not isinstance(manifest.get("files"), list):
-            raise ValueError("Versão de manifesto incompatível.")
-        entries = manifest["files"]
-        if not entries or len(entries) > MAX_FILES:
-            raise ValueError("Manifesto vazio ou grande demais.")
-        if any(not isinstance(item, dict) for item in entries):
-            raise ValueError("Entrada inválida no manifesto.")
-        paths = [valid_path(item.get("path")) for item in entries]
-        if len(paths) != len(set(value.casefold() for value in paths)):
-            raise ValueError("O manifesto contém arquivos duplicados.")
-        if set(names) != {MANIFEST, "install.sh", *(f"files/{value}" for value in paths)}:
-            raise ValueError("O ZIP contém arquivos fora do manifesto.")
-        if archive.read("install.sh").decode("utf-8") != shell_installer(paths):
-            raise ValueError("O instalador do pacote não corresponde ao manifesto.")
-        entrypoint = valid_path(manifest.get("entrypoint"))
-        if entrypoint not in paths or not (entrypoint.startswith((".claude/agents/", ".codex/agents/"))
-                                           or entrypoint.endswith("/SKILL.md") and entrypoint.startswith((".agents/skills/", ".claude/skills/", ".codex/skills/"))):
-            raise ValueError("O agente principal não está no pacote.")
-        payload: dict[str, bytes] = {}
-        for item, relative in zip(entries, paths):
-            data = archive.read(f"files/{relative}")
-            if len(data) != item.get("bytes") or hashlib.sha256(data).hexdigest() != item.get("sha256"):
-                raise ValueError(f"Conteúdo inválido: {relative}")
-            payload[relative] = data
+        if MANIFEST not in names and "install.sh" not in names:
+            manifest, payload = legacy_package(archive, infos)
+        else:
+            if MANIFEST not in names or "install.sh" not in names:
+                raise ValueError("Pacote AgentOrchestra incompleto: faltam manifesto ou install.sh.")
+            if any(item.is_dir() for item in infos):
+                raise ValueError("Diretórios não são aceitos no pacote AgentOrchestra.")
+            manifest, payload = read_native_package(archive, names)
     for relative, data in payload.items():
         if relative.endswith((".md", ".toml")):
             if relative.startswith(".claude/agents/"):
@@ -285,8 +343,40 @@ def read_package(archive_file: Path) -> tuple[dict, dict[str, bytes]]:
                                 f".codex/skills/{name}/SKILL.md")):
                         raise ValueError(f"Skill exigida pelo agente não incluída: {name}")
             for reference in local_references(relative, data.decode("utf-8")):
-                if reference not in payload:
+                if reference.endswith("/"):
+                    if not any(value.startswith(reference) for value in payload):
+                        raise ValueError(f"Diretório não incluído no pacote: {relative} → {reference}")
+                elif reference not in payload:
                     raise ValueError(f"Referência não incluída no pacote: {relative} → {reference}")
+    return manifest, payload
+
+
+def read_native_package(archive: zipfile.ZipFile, names: list[str]) -> tuple[dict, dict[str, bytes]]:
+    manifest = json.loads(archive.read(MANIFEST))
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") != SCHEMA or not isinstance(manifest.get("files"), list):
+        raise ValueError("Versão de manifesto incompatível.")
+    entries = manifest["files"]
+    if not entries or len(entries) > MAX_FILES:
+        raise ValueError("Manifesto vazio ou grande demais.")
+    if any(not isinstance(item, dict) for item in entries):
+        raise ValueError("Entrada inválida no manifesto.")
+    paths = [valid_path(item.get("path")) for item in entries]
+    if len(paths) != len(set(value.casefold() for value in paths)):
+        raise ValueError("O manifesto contém arquivos duplicados.")
+    if set(names) != {MANIFEST, "install.sh", *(f"files/{value}" for value in paths)}:
+        raise ValueError("O ZIP contém arquivos fora do manifesto.")
+    if archive.read("install.sh").decode("utf-8") != shell_installer(paths):
+        raise ValueError("O instalador do pacote não corresponde ao manifesto.")
+    entrypoint = valid_path(manifest.get("entrypoint"))
+    if entrypoint not in paths or not (entrypoint.startswith((".claude/agents/", ".codex/agents/"))
+                                       or entrypoint.endswith("/SKILL.md") and entrypoint.startswith((".agents/skills/", ".claude/skills/", ".codex/skills/"))):
+        raise ValueError("O agente principal não está no pacote.")
+    payload: dict[str, bytes] = {}
+    for item, relative in zip(entries, paths):
+        data = archive.read(f"files/{relative}")
+        if len(data) != item.get("bytes") or hashlib.sha256(data).hexdigest() != item.get("sha256"):
+            raise ValueError(f"Conteúdo inválido: {relative}")
+        payload[relative] = data
     return manifest, payload
 
 
@@ -307,7 +397,8 @@ def inspect_package(archive_file: Path, root: Path) -> dict:
     if not root.is_dir():
         raise ValueError("Abra uma pasta de projeto válida para receber o agente.")
     conflicts = [relative for relative in payload if destination(root, relative).exists()]
-    return {"ok": True, "entrypoint": manifest["entrypoint"], "files": list(payload), "conflicts": conflicts}
+    return {"ok": True, "entrypoint": manifest["entrypoint"], "format": manifest.get("format", "agentorchestra"),
+            "files": list(payload), "conflicts": conflicts}
 
 
 def import_package(archive_file: Path, root: Path) -> dict:
@@ -329,7 +420,8 @@ def import_package(archive_file: Path, root: Path) -> dict:
         for file in reversed(created):
             file.unlink(missing_ok=True)
         raise
-    return {"ok": True, "entrypoint": manifest["entrypoint"], "files": list(payload), "project": str(root)}
+    return {"ok": True, "entrypoint": manifest["entrypoint"], "format": manifest.get("format", "agentorchestra"),
+            "files": list(payload), "project": str(root)}
 
 
 def main() -> int:
