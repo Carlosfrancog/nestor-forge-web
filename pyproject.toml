@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nestor-forge"
+version = "0.3.0"
+description = "Compilador de especificações de agentes"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["rich>=15,<16", "readchar>=4.2,<5"]
+
+[project.scripts]
+nestor-forge = "nestor_forge.cli:main"
+
+[tool.setuptools]
+py-modules = ["forge"]
+
+[tool.setuptools.packages.find]
+include = ["nestor_forge*"]
+
+[tool.setuptools.package-data]
+nestor_forge = ["templates/*.json"]
