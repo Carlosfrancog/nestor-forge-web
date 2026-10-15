@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    "changes.md",
+    "index.md",
+    "modules/docs-5310eeb1.md",
+    "modules/examples-841babb9.md",
+    "modules/github-bc8ba131.md",
+    "modules/nestor-forge-6952e1f1.md",
+    "modules/scripts-8f645734.md",
+    "modules/site-292ff8da.md",
+    "modules/tests-68f05093.md",
+    "modules/unclassified-f86dd5e5.md",
+    "modules/vscode-extension-ee93e464.md"
+  ],
+  "mapHash": "b3810faae7e5e0adc61cbf77100f3cbf5e51fe793e3b0cd2acbdedcec411e5dc"
+}

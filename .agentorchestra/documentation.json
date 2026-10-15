@@ -14,7 +14,9 @@
     "template",
     "Nestor-Claws-Forge-rebuild.zip",
     "nestor-claws-modular-package.zip",
-    "Nestor-Claws-v1.0.0.zip"
+    "Nestor-Claws-v1.0.0.zip",
+    "tests/forge-browser-output.zip",
+    "tests/forge-ui.png"
   ],
   "outputDir": "docs/architecture"
 }

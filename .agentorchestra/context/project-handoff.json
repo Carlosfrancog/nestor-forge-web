@@ -1,0 +1,734 @@
+{
+  "schemaVersion": 1,
+  "project": "nestor-forge-v0.3",
+  "revision": "2a0a18be1ecbf34f9ff9fa360043fd3c9dc733c0",
+  "mapHash": "b3810faae7e5e0adc61cbf77100f3cbf5e51fe793e3b0cd2acbdedcec411e5dc",
+  "generatedAt": "2026-10-15T22:47:05.273Z",
+  "counts": {
+    "folders": 19,
+    "files": 85,
+    "modules": 9,
+    "relations": 45
+  },
+  "modules": [
+    {
+      "id": ".github",
+      "name": ".github",
+      "path": ".github",
+      "kind": "directory",
+      "counts": {
+        "files": 1,
+        "relations": 0
+      },
+      "keyFiles": [
+        {
+          "path": ".github/workflows/pages.yml",
+          "line": 1
+        }
+      ],
+      "relations": [],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": ".github/workflows/pages.yml",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "docs",
+      "name": "docs",
+      "path": "docs",
+      "kind": "directory",
+      "counts": {
+        "files": 2,
+        "relations": 3
+      },
+      "keyFiles": [
+        {
+          "path": "docs/AGENT_RUNNER.md",
+          "line": 1
+        },
+        {
+          "path": "docs/INTEGRACOES.md",
+          "line": 1
+        }
+      ],
+      "relations": [
+        {
+          "from": "docs/AGENT_RUNNER.md",
+          "to": "examples/agent-answers.json",
+          "type": "imports"
+        },
+        {
+          "from": "README.md",
+          "to": "docs/AGENT_RUNNER.md",
+          "type": "imports"
+        },
+        {
+          "from": "README.md",
+          "to": "docs/INTEGRACOES.md",
+          "type": "imports"
+        }
+      ],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": "docs/AGENT_RUNNER.md",
+          "line": 1
+        },
+        {
+          "path": "docs/INTEGRACOES.md",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "examples",
+      "name": "examples",
+      "path": "examples",
+      "kind": "directory",
+      "counts": {
+        "files": 6,
+        "relations": 1
+      },
+      "keyFiles": [
+        {
+          "path": "examples/agent-answers.json",
+          "line": 1
+        },
+        {
+          "path": "examples/context-agents/contexto-de-stack.json",
+          "line": 1
+        },
+        {
+          "path": "examples/context-agents/historico-git.json",
+          "line": 1
+        },
+        {
+          "path": "examples/context-agents/leitura-de-projeto.json",
+          "line": 1
+        },
+        {
+          "path": "examples/nestor-claws-rebuild.json",
+          "line": 1
+        },
+        {
+          "path": "examples/spec.preenchido.json",
+          "line": 1
+        }
+      ],
+      "relations": [
+        {
+          "from": "docs/AGENT_RUNNER.md",
+          "to": "examples/agent-answers.json",
+          "type": "imports"
+        }
+      ],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": "examples/agent-answers.json",
+          "line": 1
+        },
+        {
+          "path": "examples/context-agents/contexto-de-stack.json",
+          "line": 1
+        },
+        {
+          "path": "examples/context-agents/historico-git.json",
+          "line": 1
+        },
+        {
+          "path": "examples/context-agents/leitura-de-projeto.json",
+          "line": 1
+        },
+        {
+          "path": "examples/nestor-claws-rebuild.json",
+          "line": 1
+        },
+        {
+          "path": "examples/spec.preenchido.json",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "nestor_forge",
+      "name": "nestor_forge",
+      "path": "nestor_forge",
+      "kind": "directory",
+      "counts": {
+        "files": 8,
+        "relations": 0
+      },
+      "keyFiles": [
+        {
+          "path": "nestor_forge/__init__.py"
+        },
+        {
+          "path": "nestor_forge/cli.py",
+          "line": 34
+        },
+        {
+          "path": "nestor_forge/compiler.py",
+          "line": 14
+        },
+        {
+          "path": "nestor_forge/domain.py",
+          "line": 126
+        },
+        {
+          "path": "nestor_forge/questions.py",
+          "line": 11
+        },
+        {
+          "path": "nestor_forge/renderers.py",
+          "line": 7
+        },
+        {
+          "path": "nestor_forge/targets.py",
+          "line": 12
+        },
+        {
+          "path": "nestor_forge/templates/spec.template.json",
+          "line": 1
+        }
+      ],
+      "relations": [],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": "nestor_forge/__init__.py"
+        },
+        {
+          "path": "nestor_forge/cli.py",
+          "line": 34
+        },
+        {
+          "path": "nestor_forge/compiler.py",
+          "line": 14
+        },
+        {
+          "path": "nestor_forge/domain.py",
+          "line": 126
+        },
+        {
+          "path": "nestor_forge/questions.py",
+          "line": 11
+        },
+        {
+          "path": "nestor_forge/renderers.py",
+          "line": 7
+        },
+        {
+          "path": "nestor_forge/targets.py",
+          "line": 12
+        },
+        {
+          "path": "nestor_forge/templates/spec.template.json",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "scripts",
+      "name": "scripts",
+      "path": "scripts",
+      "kind": "directory",
+      "counts": {
+        "files": 5,
+        "relations": 0
+      },
+      "keyFiles": [
+        {
+          "path": "scripts/agent_run.py",
+          "line": 19
+        },
+        {
+          "path": "scripts/build_context_agents.py",
+          "line": 40
+        },
+        {
+          "path": "scripts/build_site.py",
+          "line": 18
+        },
+        {
+          "path": "scripts/bundle_extension_backend.py",
+          "line": 14
+        },
+        {
+          "path": "scripts/commit_ast.py",
+          "line": 27
+        }
+      ],
+      "relations": [],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": "scripts/agent_run.py",
+          "line": 19
+        },
+        {
+          "path": "scripts/build_context_agents.py",
+          "line": 40
+        },
+        {
+          "path": "scripts/build_site.py",
+          "line": 18
+        },
+        {
+          "path": "scripts/bundle_extension_backend.py",
+          "line": 14
+        },
+        {
+          "path": "scripts/commit_ast.py",
+          "line": 27
+        }
+      ]
+    },
+    {
+      "id": "site",
+      "name": "site",
+      "path": "site",
+      "kind": "directory",
+      "counts": {
+        "files": 6,
+        "relations": 4
+      },
+      "keyFiles": [
+        {
+          "path": "site/index.html",
+          "line": 2
+        },
+        {
+          "path": "site/app.js",
+          "line": 18
+        },
+        {
+          "path": "site/favicon.svg"
+        },
+        {
+          "path": "site/modern.css",
+          "line": 2
+        },
+        {
+          "path": "site/styles.css",
+          "line": 1
+        },
+        {
+          "path": "site/forge-worker.js",
+          "line": 5
+        }
+      ],
+      "relations": [
+        {
+          "from": "site/index.html",
+          "to": "site/app.js",
+          "type": "imports"
+        },
+        {
+          "from": "site/index.html",
+          "to": "site/favicon.svg",
+          "type": "imports"
+        },
+        {
+          "from": "site/index.html",
+          "to": "site/modern.css",
+          "type": "imports"
+        },
+        {
+          "from": "site/index.html",
+          "to": "site/styles.css",
+          "type": "imports"
+        }
+      ],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": "site/index.html",
+          "line": 2
+        },
+        {
+          "path": "site/app.js",
+          "line": 18
+        },
+        {
+          "path": "site/favicon.svg"
+        },
+        {
+          "path": "site/modern.css",
+          "line": 2
+        },
+        {
+          "path": "site/styles.css",
+          "line": 1
+        },
+        {
+          "path": "site/forge-worker.js",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "id": "tests",
+      "name": "tests",
+      "path": "tests",
+      "kind": "directory",
+      "counts": {
+        "files": 4,
+        "relations": 0
+      },
+      "keyFiles": [
+        {
+          "path": "tests/browser_smoke.mjs",
+          "line": 21
+        },
+        {
+          "path": "tests/quick_help_browser.mjs",
+          "line": 24
+        },
+        {
+          "path": "tests/test_commit_ast.py",
+          "line": 13
+        },
+        {
+          "path": "tests/test_forge.py",
+          "line": 23
+        }
+      ],
+      "relations": [],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": "tests/browser_smoke.mjs",
+          "line": 21
+        },
+        {
+          "path": "tests/quick_help_browser.mjs",
+          "line": 24
+        },
+        {
+          "path": "tests/test_commit_ast.py",
+          "line": 13
+        },
+        {
+          "path": "tests/test_forge.py",
+          "line": 23
+        }
+      ]
+    },
+    {
+      "id": "unclassified",
+      "name": "Não classificado",
+      "kind": "support",
+      "counts": {
+        "files": 5,
+        "relations": 3
+      },
+      "keyFiles": [
+        {
+          "path": "README.md",
+          "line": 1
+        },
+        {
+          "path": ".gitignore"
+        },
+        {
+          "path": "forge.py",
+          "line": 17
+        },
+        {
+          "path": "pyproject.toml"
+        },
+        {
+          "path": "uv.lock"
+        }
+      ],
+      "relations": [
+        {
+          "from": "README.md",
+          "to": "docs/AGENT_RUNNER.md",
+          "type": "imports"
+        },
+        {
+          "from": "README.md",
+          "to": "docs/INTEGRACOES.md",
+          "type": "imports"
+        },
+        {
+          "from": "README.md",
+          "to": "vscode-extension/README.md",
+          "type": "imports"
+        }
+      ],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": "README.md",
+          "line": 1
+        },
+        {
+          "path": ".gitignore"
+        },
+        {
+          "path": "forge.py",
+          "line": 17
+        },
+        {
+          "path": "pyproject.toml"
+        },
+        {
+          "path": "uv.lock"
+        }
+      ]
+    },
+    {
+      "id": "vscode-extension",
+      "name": "vscode-extension",
+      "path": "vscode-extension",
+      "kind": "directory",
+      "counts": {
+        "files": 48,
+        "relations": 38
+      },
+      "keyFiles": [
+        {
+          "path": "vscode-extension/src/extension.js",
+          "line": 22
+        },
+        {
+          "path": "vscode-extension/src/catalog.js",
+          "line": 16
+        },
+        {
+          "path": "vscode-extension/src/projectMap.js",
+          "line": 45
+        },
+        {
+          "path": "vscode-extension/src/activity.js",
+          "line": 12
+        },
+        {
+          "path": "vscode-extension/src/dashboard.js",
+          "line": 9
+        },
+        {
+          "path": "vscode-extension/src/diffAst.js",
+          "line": 10
+        },
+        {
+          "path": "vscode-extension/src/projectDocs.js",
+          "line": 10
+        },
+        {
+          "path": "vscode-extension/src/structural.js",
+          "line": 18
+        }
+      ],
+      "relations": [
+        {
+          "from": "README.md",
+          "to": "vscode-extension/README.md",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/scripts/diff-ast.js",
+          "to": "vscode-extension/src/diffAst.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/dashboard.js",
+          "to": "vscode-extension/src/activity.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/dashboard.js",
+          "to": "vscode-extension/src/forge.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/diffAst.js",
+          "to": "vscode-extension/src/structural.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/extension.js",
+          "to": "vscode-extension/src/activity.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/extension.js",
+          "to": "vscode-extension/src/agentRuns.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/extension.js",
+          "to": "vscode-extension/src/catalog.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/extension.js",
+          "to": "vscode-extension/src/dashboard.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/extension.js",
+          "to": "vscode-extension/src/forge.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/extension.js",
+          "to": "vscode-extension/src/projectDocs.js",
+          "type": "imports"
+        },
+        {
+          "from": "vscode-extension/src/extension.js",
+          "to": "vscode-extension/src/projectDocumentationAgent.js",
+          "type": "imports"
+        }
+      ],
+      "gaps": [],
+      "evidence": [
+        {
+          "path": "vscode-extension/src/extension.js",
+          "line": 22
+        },
+        {
+          "path": "vscode-extension/src/catalog.js",
+          "line": 16
+        },
+        {
+          "path": "vscode-extension/src/projectMap.js",
+          "line": 45
+        },
+        {
+          "path": "vscode-extension/src/activity.js",
+          "line": 12
+        },
+        {
+          "path": "vscode-extension/src/dashboard.js",
+          "line": 9
+        },
+        {
+          "path": "vscode-extension/src/diffAst.js",
+          "line": 10
+        },
+        {
+          "path": "vscode-extension/src/projectDocs.js",
+          "line": 10
+        },
+        {
+          "path": "vscode-extension/src/structural.js",
+          "line": 18
+        }
+      ]
+    }
+  ],
+  "gaps": [
+    "5 arquivo(s) sem módulo; configure .agentorchestra/documentation.json para classificar."
+  ],
+  "git": {
+    "changes": [
+      {
+        "hash": "2a0a18b",
+        "subject": "chore: scope project documentation to repository sources",
+        "paths": [
+          ".agentorchestra/documentation.json"
+        ]
+      },
+      {
+        "hash": "e1f7bd9",
+        "subject": "docs: explain Graphify taxonomy and prepare VSIX 0.5.8",
+        "paths": [
+          "vscode-extension/package-lock.json",
+          "vscode-extension/package.json",
+          "vscode-extension/README.md"
+        ]
+      },
+      {
+        "hash": "8972f1a",
+        "subject": "feat: classify Laravel domains across Graphify layers",
+        "paths": [
+          "vscode-extension/src/moduleTaxonomy.js",
+          "vscode-extension/src/projectMap.js",
+          "vscode-extension/test/projectMap.test.js"
+        ]
+      },
+      {
+        "hash": "e6606d1",
+        "subject": "feat: hand project documentation to an agent",
+        "paths": [
+          "vscode-extension/package-lock.json",
+          "vscode-extension/package.json",
+          "vscode-extension/README.md",
+          "vscode-extension/src/extension.js",
+          "vscode-extension/src/projectDocs.js",
+          "vscode-extension/src/projectDocumentationAgent.js",
+          "vscode-extension/src/projectMapView.js",
+          "vscode-extension/test/projectDocs.test.js"
+        ]
+      },
+      {
+        "hash": "773fc93",
+        "subject": "fix: bound map cache and classify Laravel groups",
+        "paths": [
+          "vscode-extension/src/projectMap.js",
+          "vscode-extension/test/projectMap.test.js"
+        ]
+      },
+      {
+        "hash": "5b81e0b",
+        "subject": "fix: retire legacy per-file map cache after migration",
+        "paths": [
+          "vscode-extension/src/projectMap.js",
+          "vscode-extension/test/projectMap.test.js"
+        ]
+      },
+      {
+        "hash": "ebe95c8",
+        "subject": "docs: explain compact cache and generated notes",
+        "paths": [
+          "vscode-extension/README.md",
+          "vscode-extension/src/projectMapView.js"
+        ]
+      },
+      {
+        "hash": "5c7df7e",
+        "subject": "feat: navigate project folders and simplify extension actions",
+        "paths": [
+          "vscode-extension/README.md",
+          "vscode-extension/src/projectMapView.js",
+          "vscode-extension/test/treeActions.test.js"
+        ]
+      },
+      {
+        "hash": "a184013",
+        "subject": "fix: centralize map cache and parse project files",
+        "paths": [
+          ".gitignore",
+          "vscode-extension/package-lock.json",
+          "vscode-extension/package.json",
+          "vscode-extension/src/extension.js",
+          "vscode-extension/src/helpers/python_ast.py",
+          "vscode-extension/src/projectMap.js",
+          "vscode-extension/src/projectMapRunner.js",
+          "vscode-extension/src/structural.js"
+        ]
+      },
+      {
+        "hash": "0547b42",
+        "subject": "fix: usar novo ID após remoção no Marketplace",
+        "paths": [
+          "scripts/build_site.py",
+          "tests/test_forge.py",
+          "vscode-extension/package-lock.json",
+          "vscode-extension/package.json",
+          "vscode-extension/README.md",
+          "vscode-extension/test/treeActions.test.js",
+          "vscode-extension/test/updates.test.js"
+        ]
+      }
+    ]
+  }
+}
