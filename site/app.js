@@ -25,6 +25,46 @@ const blankSpec = () => ({
   }
 });
 
+const quickPresets = {
+  explore: {
+    profile: 'reader', name: 'Leitor de Projeto',
+    role: 'analisar a estrutura e os fluxos de um projeto de software',
+    mission: 'entregar um mapa verificável do projeto para orientar as próximas tarefas',
+    focus: ['Identificar pontos de entrada', 'Mapear módulos e fluxos relevantes', 'Apontar lacunas de contexto'],
+    behavior: ['Direto', 'Baseado em evidências'],
+    analysis_pipeline: ['Ler documentação e estrutura', 'Seguir fluxos relevantes', 'Citar arquivos e símbolos'],
+    response_sections: ['Resumo', 'Mapa do projeto', 'Evidências', 'Próximas leituras']
+  },
+  review: {
+    profile: 'reviewer', name: 'Revisor de Código',
+    role: 'revisar alterações de código com foco em correção e riscos',
+    mission: 'identificar problemas concretos e explicar seu impacto com evidências',
+    focus: ['Verificar comportamento alterado', 'Identificar regressões', 'Priorizar achados'],
+    behavior: ['Objetivo', 'Baseado em evidências'],
+    analysis_pipeline: ['Delimitar as mudanças', 'Rastrear os fluxos afetados', 'Validar cada achado'],
+    response_sections: ['Achados', 'Evidências', 'Riscos', 'Lacunas']
+  },
+  build: {
+    profile: 'coder', name: 'Implementador',
+    role: 'implementar mudanças de código com atenção à manutenção',
+    mission: 'entregar uma mudança funcional e verificar seu comportamento no escopo autorizado',
+    focus: ['Entender a tarefa', 'Implementar a menor mudança coerente', 'Validar o resultado'],
+    behavior: ['Prático', 'Cuidadoso', 'Claro'],
+    analysis_pipeline: ['Ler o fluxo atual', 'Implementar a mudança', 'Executar validações proporcionais'],
+    response_sections: ['Mudanças', 'Validação', 'Limitações'],
+    permissions: { write_code: true }
+  },
+  plan: {
+    profile: 'planner', name: 'Planejador Técnico',
+    role: 'organizar trabalho técnico em etapas executáveis',
+    mission: 'produzir um plano com dependências, riscos e critérios de conclusão',
+    focus: ['Definir escopo', 'Ordenar dependências', 'Antecipar riscos'],
+    behavior: ['Claro', 'Baseado em evidências'],
+    analysis_pipeline: ['Confirmar objetivo e restrições', 'Identificar dependências', 'Definir etapas e validação'],
+    response_sections: ['Objetivo', 'Etapas', 'Dependências', 'Riscos', 'Critérios de conclusão']
+  }
+};
+
 const form = document.querySelector('#forge-form');
 const advancedFields = document.querySelector('#advanced-fields');
 const permissionContainer = document.querySelector('#permission-fields');
@@ -34,8 +74,12 @@ const result = document.querySelector('#result');
 const generateButton = document.querySelector('#generate-button');
 const promptPreview = document.querySelector('#prompt-preview');
 const downloadZip = document.querySelector('#download-zip');
+const helpToggle = document.querySelector('#help-toggle');
+const quickHelp = document.querySelector('#quick-help');
+const applyPresetButton = document.querySelector('#apply-preset');
 let spec = blankSpec();
 let currentMode = 'guided';
+let selectedPreset = null;
 let objectUrl = null;
 let worker = null;
 
@@ -85,6 +129,44 @@ function setStatus(message, isError = false) {
   status.textContent = message;
   status.classList.toggle('error', isError);
 }
+function setHelp(open) {
+  quickHelp.hidden = !open;
+  helpToggle.setAttribute('aria-expanded', String(open));
+  helpToggle.classList.toggle('active', open);
+}
+function updateProgress() {
+  let draft;
+  try { draft = currentMode === 'guided' ? getForm() : JSON.parse(jsonEditor.value); }
+  catch { draft = {}; }
+  const count = ['name', 'role', 'mission'].filter(key => typeof draft?.[key] === 'string' && draft[key].trim()).length;
+  document.querySelector('#progress-label').textContent = `${count} de 3`;
+  document.querySelector('#progress-fill').style.width = `${count / 3 * 100}%`;
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(count));
+}
+function applyQuickPreset() {
+  if (!selectedPreset) return;
+  const current = getForm();
+  const template = quickPresets[selectedPreset];
+  const preset = { ...blankSpec(), ...structuredClone(template), permissions: { ...blankSpec().permissions, ...template.permissions } };
+  const untouched = ['name', 'role', 'mission', ...Object.keys(listFields)].every(key =>
+    Array.isArray(current[key]) ? current[key].length === 0 : !current[key]);
+  const replace = document.querySelector('#replace-existing').checked || untouched;
+  if (replace) {
+    spec = preset;
+  } else {
+    spec = current;
+    for (const key of ['name', 'role', 'mission', ...Object.keys(listFields)]) {
+      if (Array.isArray(spec[key]) ? spec[key].length === 0 : !spec[key]) spec[key] = structuredClone(preset[key]);
+    }
+  }
+  putForm(spec);
+  result.hidden = true;
+  updateProgress();
+  setHelp(false);
+  document.querySelector('#help-feedback').textContent = replace ? 'Modelo aplicado ao formulário.' : 'Campos vazios preenchidos; perfil e permissões mantidos.';
+  setStatus('Modelo aplicado. Revise os campos e compile o pacote.');
+  form.elements.name.focus();
+}
 function switchMode(mode) {
   if (mode === currentMode) return;
   if (currentMode === 'guided') {
@@ -103,6 +185,7 @@ function switchMode(mode) {
     }
   }
   currentMode = mode;
+  if (mode === 'json') setHelp(false);
   document.querySelector('#guided-panel').hidden = mode !== 'guided';
   document.querySelector('#json-panel').hidden = mode !== 'json';
   for (const target of ['guided', 'json']) {
@@ -111,6 +194,7 @@ function switchMode(mode) {
     tab.setAttribute('aria-selected', String(mode === target));
   }
   setStatus('Pronto para compilar.');
+  updateProgress();
 }
 function slugify(name) {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -176,11 +260,36 @@ function startWorker() {
 
 buildForm();
 putForm(spec);
+updateProgress();
 document.querySelector('#guided-tab').addEventListener('click', () => switchMode('guided'));
 document.querySelector('#json-tab').addEventListener('click', () => switchMode('json'));
+helpToggle.addEventListener('click', () => {
+  if (currentMode === 'json') switchMode('guided');
+  if (currentMode !== 'guided') return;
+  setHelp(quickHelp.hidden);
+  if (!quickHelp.hidden) quickHelp.querySelector('.preset-card').focus();
+});
+document.querySelector('#help-close').addEventListener('click', () => { setHelp(false); helpToggle.focus(); });
+for (const card of quickHelp.querySelectorAll('.preset-card')) {
+  card.addEventListener('click', () => {
+    selectedPreset = card.dataset.preset;
+    quickHelp.querySelectorAll('.preset-card').forEach(item => {
+      const selected = item === card;
+      item.classList.toggle('selected', selected);
+      item.setAttribute('aria-pressed', String(selected));
+    });
+    applyPresetButton.disabled = false;
+  });
+}
+applyPresetButton.addEventListener('click', applyQuickPreset);
+form.addEventListener('input', () => { result.hidden = true; updateProgress(); });
+form.addEventListener('change', () => { result.hidden = true; updateProgress(); });
+jsonEditor.addEventListener('input', () => { result.hidden = true; updateProgress(); });
 document.querySelector('#reset-json').addEventListener('click', () => {
   spec = blankSpec();
   jsonEditor.value = JSON.stringify(spec, null, 2);
+  result.hidden = true;
+  updateProgress();
   setStatus('Especificação limpa.');
 });
 document.querySelector('#json-upload').addEventListener('change', async event => {
@@ -191,6 +300,8 @@ document.querySelector('#json-upload').addEventListener('change', async event =>
     validate(parsed);
     spec = parsed;
     jsonEditor.value = JSON.stringify(spec, null, 2);
+    result.hidden = true;
+    updateProgress();
     setStatus(`Arquivo ${file.name} importado.`);
   } catch (error) { setStatus(`Não foi possível importar: ${error.message}`, true); }
   event.target.value = '';

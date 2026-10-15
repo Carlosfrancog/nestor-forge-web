@@ -42,13 +42,34 @@
           <section class="panel editor-panel" aria-labelledby="editor-heading">
             <div class="panel-heading">
               <div><p class="step">01 — ENTRADA</p><h2 id="editor-heading">Especificação</h2></div>
-              <div class="tabs" role="tablist" aria-label="Modo de edição">
-                <button id="guided-tab" class="tab active" role="tab" aria-selected="true" aria-controls="guided-panel" type="button">Guiado</button>
-                <button id="json-tab" class="tab" role="tab" aria-selected="false" aria-controls="json-panel" type="button">JSON</button>
+              <div class="editor-tools">
+                <button id="help-toggle" class="help-toggle" type="button" aria-expanded="false" aria-controls="quick-help">✦ Ajuda rápida</button>
+                <div class="tabs" role="tablist" aria-label="Modo de edição">
+                  <button id="guided-tab" class="tab active" role="tab" aria-selected="true" aria-controls="guided-panel" type="button">Guiado</button>
+                  <button id="json-tab" class="tab" role="tab" aria-selected="false" aria-controls="json-panel" type="button">JSON</button>
+                </div>
               </div>
             </div>
 
             <div id="guided-panel" role="tabpanel" aria-labelledby="guided-tab">
+              <section id="quick-help" class="quick-help" aria-labelledby="quick-help-heading" hidden>
+                <div class="quick-help-heading">
+                  <div><p class="step">PREENCHIMENTO RÁPIDO</p><h3 id="quick-help-heading">Escolha um ponto de partida</h3><p>Modelos genéricos para começar. Depois, ajuste cada campo ao seu projeto.</p></div>
+                  <button id="help-close" class="help-close" type="button" aria-label="Fechar ajuda rápida">×</button>
+                </div>
+                <div class="preset-grid" role="group" aria-label="Modelos de agente">
+                  <button class="preset-card" type="button" data-preset="explore" aria-pressed="false"><span class="preset-icon" aria-hidden="true">⌁</span><strong>Explorar projeto</strong><small>Estrutura, entradas e fluxos</small></button>
+                  <button class="preset-card" type="button" data-preset="review" aria-pressed="false"><span class="preset-icon" aria-hidden="true">◇</span><strong>Revisar código</strong><small>Riscos e evidências</small></button>
+                  <button class="preset-card" type="button" data-preset="build" aria-pressed="false"><span class="preset-icon" aria-hidden="true">＋</span><strong>Implementar</strong><small>Mudança e validação</small></button>
+                  <button class="preset-card" type="button" data-preset="plan" aria-pressed="false"><span class="preset-icon" aria-hidden="true">↗</span><strong>Planejar</strong><small>Etapas e dependências</small></button>
+                </div>
+                <div class="quick-help-actions">
+                  <label class="replace-option"><input id="replace-existing" type="checkbox"> Substituir também os campos já preenchidos</label>
+                  <button id="apply-preset" class="apply-preset" type="button" disabled>Aplicar modelo <span aria-hidden="true">→</span></button>
+                </div>
+                <p class="quick-help-note">Sem substituição, a ajuda completa os campos vazios. Perfil e permissões atuais são mantidos quando você já começou a escrever.</p>
+                <p id="help-feedback" class="help-feedback" role="status" aria-live="polite"></p>
+              </section>
               <form id="forge-form">
                 <div class="form-grid">
                   <label class="field"><span>Perfil</span><select name="profile" id="profile"><option value="reader">Leitor</option><option value="coder">Programador</option><option value="reviewer">Revisor</option><option value="infra">Infraestrutura</option><option value="qa">Qualidade</option><option value="planner">Planejador</option><option value="audio">Áudio</option><option value="custom">Personalizado</option></select></label>
@@ -91,6 +112,7 @@
 
           <aside class="panel output-panel" aria-labelledby="output-heading">
             <div class="panel-heading"><div><p class="step">02 — SAÍDA</p><h2 id="output-heading">Pacote do agente</h2><p class="panel-subtitle">Escolha onde seu agente vai trabalhar.</p></div></div>
+            <div class="form-progress"><div><span>Campos essenciais</span><strong id="progress-label">0 de 3</strong></div><div class="progress-track" role="progressbar" aria-label="Campos essenciais preenchidos" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><span id="progress-fill"></span></div></div>
             <fieldset class="destination"><legend class="sr-only">Plataforma de destino</legend>
               <label class="destination-option selected"><input type="radio" name="target" value="codex" checked><span class="destination-index" aria-hidden="true">01</span><span><strong>Codex</strong><small>Especificação para adaptar</small></span><span class="radio-mark"></span></label>
               <label class="destination-option"><input type="radio" name="target" value="claude"><span class="destination-index" aria-hidden="true">02</span><span><strong>Claude</strong><small>Plugin para Cowork e Claude Code</small></span><span class="radio-mark"></span></label>
@@ -144,7 +166,10 @@
                 <a class="context-agents-download" href="./downloads/agentes-contexto.zip" download>Baixar ZIP dos agentes <span aria-hidden="true">↓</span></a>
                 <p>Extraia na raiz do projeto e revise os arquivos existentes antes de substituir. O ZIP contém instruções de instalação.</p>
               </div>
-              <p class="extension-note">Após instalar esta versão, use <strong>AgentOrchestra: Verificar atualizações</strong> no VS Code. A extensão consulta o <a href="./updates/agentorchestra.json">manifesto de atualização</a>, avisa quando houver versão nova e permite instalar em um clique. Em configurações, selecione <strong>agentOrchestra.updateMode: auto</strong> para instalar automaticamente. Recarregue a janela quando solicitado.</p>
+              <details class="extension-update-details">
+                <summary>Como funcionam as atualizações <span aria-hidden="true">↗</span></summary>
+                <p>Após instalar esta versão, use <strong>AgentOrchestra: Verificar atualizações</strong> no VS Code. A extensão consulta o <a href="./updates/agentorchestra.json">manifesto de atualização</a>, avisa quando houver versão nova e permite instalar em um clique. Em configurações, selecione <strong>agentOrchestra.updateMode: auto</strong> para instalar automaticamente. Recarregue a janela quando solicitado.</p>
+              </details>
             </div>
           </div>
         </section>
