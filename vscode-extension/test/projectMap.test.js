@@ -102,3 +102,18 @@ test('links local Markdown and HTML references but skips remote URLs', async t =
   ]);
   assert.equal(result.stats.parseErrors, 0);
 });
+
+test('migrates only recognized legacy cache entries out of the project', async t => {
+  const { root, write } = await fixture(t);
+  await write('src/main.js', 'export function run() {}');
+  const legacy = path.join(root, '.agentorchestra', 'cache', 'project-map');
+  await fs.mkdir(legacy, { recursive: true });
+  await fs.writeFile(path.join(legacy, `${'a'.repeat(64)}-js.json`), '{}');
+  await scanProject(root, { cacheDir: `${root}-external-cache` });
+  await assert.rejects(fs.access(legacy));
+  t.after(() => fs.rm(`${root}-external-cache`, { recursive: true, force: true }));
+  await fs.mkdir(legacy, { recursive: true });
+  await fs.writeFile(path.join(legacy, 'manual.txt'), 'keep');
+  await scanProject(root, { cacheDir: `${root}-external-cache` });
+  assert.equal(await fs.readFile(path.join(legacy, 'manual.txt'), 'utf8'), 'keep');
+});

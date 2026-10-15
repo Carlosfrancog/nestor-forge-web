@@ -135,6 +135,28 @@ async function gitRevision(root) {
   } catch { return null; }
 }
 
+async function pruneLegacyCache(root) {
+  const workspaceDir = path.join(root, '.agentorchestra');
+  const cacheParent = path.join(workspaceDir, 'cache');
+  const oldCache = path.join(cacheParent, 'project-map');
+  let entries;
+  try {
+    for (const directory of [workspaceDir, cacheParent, oldCache]) {
+      const stat = await fs.lstat(directory);
+      if (!stat.isDirectory() || stat.isSymbolicLink()) return;
+    }
+    entries = await fs.readdir(oldCache, { withFileTypes: true });
+  } catch { return; }
+  // The former mapper stored one content hash JSON per parsed file here.
+  // Leave the directory untouched if it contains anything else.
+  if (!entries.every(entry => entry.isFile() && /^[a-f0-9]{64}-[a-z0-9]+\.json$/i.test(entry.name))) return;
+  try {
+    for (const entry of entries) await fs.unlink(path.join(oldCache, entry.name));
+    await fs.rmdir(oldCache);
+    await fs.rmdir(cacheParent).catch(() => {});
+  } catch { /* Another extension instance may still be writing the old cache. */ }
+}
+
 /**
  * Build a local, deterministic inventory. Optional documentation.json accepts
  * {maxFileBytes, exclude:[relative directory/file prefixes], modules:[{id,label,paths:[prefixes]}]}.
@@ -268,6 +290,7 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
     await fs.writeFile(temporary, JSON.stringify({ version: CACHE_VERSION, entries: nextCache }));
     await fs.rename(temporary, cacheFile);
   } catch { await fs.rm(temporary, { force: true }); }
+  if (!cacheRoot.startsWith(path.join(absoluteRoot, '.agentorchestra') + path.sep)) await pruneLegacyCache(absoluteRoot);
   stats.edges = edges.length;
   stats.modules = modules.size;
   return { schemaVersion: 1, root: absoluteRoot, revision: await gitRevision(absoluteRoot),
