@@ -508,7 +508,9 @@ function activate(context) {
     }, async (progress, token) => {
       const controller = new AbortController();
       token.onCancellationRequested(() => controller.abort());
-      const options = { python: setting('pythonPath'), go: setting('goPath'), signal: controller.signal,
+      const cacheKey = crypto.createHash('sha256').update(state.root).digest('hex').slice(0, 24);
+      const options = { python: setting('pythonPath'), go: setting('goPath'),
+        cacheDir: path.join(context.globalStorageUri.fsPath, 'project-map', cacheKey), signal: controller.signal,
         onProgress: ({ folder, folders }) => {
           if (folders % 12 === 0) { progress.report({ message: `${folders} pastas` }); state.view?.loading(`Lendo ${folder}…`); }
         } };

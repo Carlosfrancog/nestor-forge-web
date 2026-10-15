@@ -2,18 +2,20 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 const { promisify } = require('node:util');
 const { execFile } = require('node:child_process');
 const { parseSource } = require('./structural');
 
 const execFileAsync = promisify(execFile);
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
 const DEFAULT_MAX_BYTES = 1024 * 1024;
 const IGNORED_DIRS = new Set([
   '.git', '.hg', '.svn', 'node_modules', 'vendor', 'dist', 'build', 'out',
   'coverage', '.next', '.nuxt', '.output', '.turbo', '.cache', '.venv', 'venv',
   '__pycache__', 'target', 'graphify-out', 'vault-modules', '.agentorchestra',
+  '.uv-cache', 'build-agent', '.chrome-design',
 ]);
 const IGNORED_FILES = new Set(['.ds_store', 'thumbs.db', 'id_rsa', 'id_ed25519']);
 const SOURCE_ROOTS = new Set(['src', 'app', 'lib', 'packages', 'apps', 'internal', 'pkg']);
@@ -57,7 +59,9 @@ function languageFor(file) {
   const extension = path.posix.extname(file).toLowerCase();
   return ({ '.php': 'PHP', '.js': 'JavaScript', '.mjs': 'JavaScript', '.cjs': 'JavaScript',
     '.jsx': 'JavaScript', '.ts': 'TypeScript', '.tsx': 'TypeScript', '.vue': 'Vue',
-    '.css': 'CSS/Tailwind', '.sql': 'PostgreSQL', '.py': 'Python', '.go': 'Go' })[extension] || null;
+    '.css': 'CSS/Tailwind', '.sql': 'PostgreSQL', '.py': 'Python', '.go': 'Go',
+    '.md': 'Markdown', '.markdown': 'Markdown', '.mdx': 'Markdown', '.json': 'JSON',
+    '.yaml': 'YAML', '.yml': 'YAML', '.html': 'HTML', '.htm': 'HTML', '.xml': 'XML' })[extension] || null;
 }
 function moduleAndLayer(file, config) {
   const parts = file.split('/');
@@ -86,21 +90,26 @@ function symbolsOf(parsed) {
   return (parsed.units || []).map(unit => ({ key: unit.key, kind: unit.kind, line: unit.line || 1 }));
 }
 function relativeImports(source, language) {
-  if (!['JavaScript', 'TypeScript', 'Vue', 'PHP'].includes(language)) return [];
+  if (!['JavaScript', 'TypeScript', 'Vue', 'PHP', 'Markdown', 'HTML'].includes(language)) return [];
   const matches = [];
   const patterns = language === 'PHP'
     ? [/\b(?:require|require_once|include|include_once)\s*(?:\(\s*)?['"](\.{1,2}\/[^'"]+)['"]/g]
+    : language === 'Markdown' ? [/!?\[[^\]]*\]\(([^)\s]+)(?:\s+[^)]*)?\)/g]
+    : language === 'HTML' ? [/\b(?:src|href)\s*=\s*['"]([^'"]+)['"]/gi]
     : [/(?:^|[;\n])\s*(?:import|export)\s+(?:[^'"\n]*?\s+from\s+)?['"](\.{1,2}\/[^'"]+)['"]/gm,
       /\b(?:require|import)\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g];
   for (const pattern of patterns) for (const match of source.matchAll(pattern)) matches.push(match[1]);
   return matches;
 }
 function resolveImport(from, specifier, known) {
-  const target = path.posix.normalize(path.posix.join(path.posix.dirname(from), specifier));
+  if (/^(?:[a-z][\w+.-]*:|#|\/)/i.test(specifier)) return null;
+  const local = specifier.split(/[?#]/)[0];
+  if (!local) return null;
+  const target = path.posix.normalize(path.posix.join(path.posix.dirname(from), local));
   if (target === '..' || target.startsWith('../') || target.startsWith('/')) return null;
   const candidates = new Set([target]);
   if (!path.posix.extname(target)) {
-    for (const extension of ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.vue', '.php', '.css']) {
+    for (const extension of ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.vue', '.php', '.css', '.md', '.html', '.json', '.yaml', '.xml']) {
       candidates.add(`${target}${extension}`);
       candidates.add(`${target}/index${extension}`);
     }
@@ -149,9 +158,17 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
       excludes.push(generatedDocs);
     } catch { /* Ainda não há documentação gerada nesta pasta. */ }
   }
-  const cacheRoot = cacheDir ? path.resolve(cacheDir) : path.join(absoluteRoot, '.agentorchestra', 'cache', 'project-map');
+  const cacheRoot = cacheDir ? path.resolve(cacheDir)
+    : path.join(os.tmpdir(), 'agentorchestra-project-map', sha256(Buffer.from(absoluteRoot)).slice(0, 24));
   const cacheRelative = safeRelative(unix(path.relative(absoluteRoot, cacheRoot)));
   if (cacheRelative && cacheRelative !== '.') excludes.push(cacheRelative);
+  const cacheFile = path.join(cacheRoot, 'project-map-cache.json');
+  let previousCache = {};
+  try {
+    const saved = JSON.parse(await fs.readFile(cacheFile, 'utf8'));
+    if (saved.version === CACHE_VERSION && saved.entries && typeof saved.entries === 'object') previousCache = saved.entries;
+  } catch { /* primeira leitura ou cache corrompido */ }
+  const nextCache = {};
   const files = [];
   const folders = [{ id: '.', path: '.', parent: null }];
   const pending = [{ absolute: absoluteRoot, relative: '.' }];
@@ -176,7 +193,7 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
       if (entry.isSymbolicLink()) { stats.ignored++; continue; }
       if (excludes.some(prefix => relative === prefix || relative.startsWith(`${prefix}/`))) { stats.ignored++; continue; }
       if (entry.isDirectory()) {
-        if (IGNORED_DIRS.has(entry.name.toLowerCase())) { stats.ignored++; continue; }
+        if (IGNORED_DIRS.has(entry.name.toLowerCase()) || /^\.(?:chrome|edge)-/i.test(entry.name)) { stats.ignored++; continue; }
         folders.push({ id: relative, path: relative, parent: folder.relative });
         pending.push({ absolute: path.join(folder.absolute, entry.name), relative });
         continue;
@@ -206,27 +223,22 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
       // JSX/TSX and plain JS/TS require different parser options even when
       // their bytes match; Dockerfiles also have a filename-based parser.
       const parserKind = language === 'Dockerfile' ? 'dockerfile' : path.posix.extname(relative).toLowerCase().slice(1);
-      const cacheFile = path.join(cacheRoot, `${file.hash}-${parserKind}.json`);
+      const cacheKey = `${file.hash}-${parserKind}`;
       let summary;
-      try {
-        const cached = JSON.parse(await fs.readFile(cacheFile, 'utf8'));
-        if (cached.version === CACHE_VERSION) { summary = cached; stats.cacheHits++; }
-      } catch { /* cache miss or corrupt cache */ }
+      const cached = previousCache[cacheKey];
+      if (cached?.version === CACHE_VERSION) { summary = cached; stats.cacheHits++; }
       if (!summary) {
         try {
           const parsed = parseSource(content.toString('utf8'), relative, { python, go });
           summary = { version: CACHE_VERSION, symbols: symbolsOf(parsed), imports: relativeImports(content.toString('utf8'), language) };
           stats.parsed++;
-          const temporary = `${cacheFile}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
-          await fs.writeFile(temporary, JSON.stringify(summary));
-          try { await fs.rename(temporary, cacheFile); }
-          catch { await fs.rm(temporary, { force: true }); }
         } catch (error) {
           file.status = 'parse-error'; stats.parseErrors++;
           warnings.push({ kind: 'parse', path: relative, message: error.message });
           continue;
         }
       }
+      nextCache[cacheKey] = summary;
       file.symbols = summary.symbols;
       file.status = 'parsed';
       contentImports.set(relative, summary.imports);
@@ -251,6 +263,11 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
   }).sort((a, b) => compare(a.source, b.source) || compare(a.target, b.target));
   const unclassified = modules.get('unclassified')?.fileCount || 0;
   if (unclassified) warnings.push({ kind: 'classification', path: '.', message: `${unclassified} arquivo(s) sem módulo; configure .agentorchestra/documentation.json para classificar.` });
+  const temporary = `${cacheFile}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+  try {
+    await fs.writeFile(temporary, JSON.stringify({ version: CACHE_VERSION, entries: nextCache }));
+    await fs.rename(temporary, cacheFile);
+  } catch { await fs.rm(temporary, { force: true }); }
   stats.edges = edges.length;
   stats.modules = modules.size;
   return { schemaVersion: 1, root: absoluteRoot, revision: await gitRevision(absoluteRoot),

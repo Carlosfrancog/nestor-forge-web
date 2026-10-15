@@ -23,23 +23,27 @@ test('maps folders, stable IDs, symbols and only verifiable relative imports', a
   await write('src/orders/index.js', "import { total } from './math.js';\nimport missing from './missing.js';\nexport function checkout() { return total(); }\n");
   await write('src/orders/math.js', 'export function total() { return 2; }\n');
   await write('src/orders/README.md', '# Orders\n');
-  const cacheDir = path.join(root, '.agentorchestra', 'cache');
+  const cacheDir = `${root}-cache`;
+  t.after(() => fs.rm(cacheDir, { recursive: true, force: true }));
   const first = await scanProject(root, { cacheDir });
   assert.equal(first.schemaVersion, 1);
   assert.deepEqual(first.files.map(file => file.id), ['src/orders/README.md', 'src/orders/index.js', 'src/orders/math.js']);
   assert.equal(first.files.find(file => file.id === 'src/orders/index.js').module, 'orders');
-  assert.equal(first.files.find(file => file.id === 'src/orders/README.md').status, 'without-parser');
+  assert.equal(first.files.find(file => file.id === 'src/orders/README.md').status, 'parsed');
+  assert.ok(first.files.find(file => file.id === 'src/orders/README.md').symbols.some(symbol => symbol.key === 'heading:1:Orders'));
+  assert.deepEqual(await fs.readdir(cacheDir), ['project-map-cache.json']);
+  await assert.rejects(fs.access(path.join(root, '.agentorchestra', 'cache')));
   assert.ok(first.files.find(file => file.id === 'src/orders/index.js').symbols.some(symbol => symbol.key === 'function:checkout'));
   assert.deepEqual(first.edges, [{ source: 'src/orders/index.js', target: 'src/orders/math.js', kind: 'imports', count: 1 }]);
   assert.ok(first.folders.some(folder => folder.id === 'src/orders' && folder.parent === 'src'));
   const second = await scanProject(root, { cacheDir });
-  assert.equal(second.stats.cacheHits, 2);
+  assert.equal(second.stats.cacheHits, 3);
   assert.equal(second.stats.parsed, 0);
   assert.deepEqual(second.edges, first.edges);
   assert.deepEqual(second.files.map(file => file.id), first.files.map(file => file.id));
   await write('src/orders/math.js', 'export function total() { return 3; }\n');
   const third = await scanProject(root, { cacheDir });
-  assert.equal(third.stats.cacheHits, 1);
+  assert.equal(third.stats.cacheHits, 2);
   assert.equal(third.stats.parsed, 1);
 });
 
@@ -81,4 +85,20 @@ test('does not map generated documentation back into its own context', async t =
   await write('docs/architecture/index.md', '# Generated map');
   const result = await scanProject(root);
   assert.deepEqual(result.files.map(file => file.path), ['src/main.js']);
+});
+
+test('links local Markdown and HTML references but skips remote URLs', async t => {
+  const { root, write } = await fixture(t);
+  await write('docs/README.md', '[Guide](guide.md)\n[External](https://example.com/x)\n');
+  await write('docs/guide.md', '# Guide\n');
+  await write('web/index.html', '<!doctype html><html><head><link href="styles.css"></head><body><script src="./app.js"></script></body></html>');
+  await write('web/styles.css', 'body { color: blue }');
+  await write('web/app.js', 'console.log("ok")');
+  const result = await scanProject(root);
+  assert.deepEqual(result.edges.map(edge => [edge.source, edge.target]), [
+    ['docs/README.md', 'docs/guide.md'],
+    ['web/index.html', 'web/app.js'],
+    ['web/index.html', 'web/styles.css'],
+  ]);
+  assert.equal(result.stats.parseErrors, 0);
 });

@@ -5,10 +5,12 @@ const { execFileSync } = require('node:child_process');
 const os = require('node:os');
 const path = require('node:path');
 const babel = require('@babel/parser');
+const html = require('@vue/compiler-dom');
 const PhpParser = require('php-parser');
 const vue = require('@vue/compiler-sfc');
 const postcss = require('postcss');
 const pgsql = require('pgsql-ast-parser');
+const yaml = require('yaml');
 
 const php = new PhpParser.Engine({ parser: { suppressErrors: false }, ast: { withPositions: true } });
 const SKIP = new Set(['loc', 'start', 'end', 'range', 'extra', 'comments', 'leadingComments', 'trailingComments', 'innerComments', 'parent', 'raw']);
@@ -67,7 +69,7 @@ function phpCalls(node) {
 }
 
 function unit(key, kind, node, body, calls, line) {
-  return { key, kind, line: line || 1, endLine: node.loc?.end?.line || line || 1, fingerprint: fingerprint(body || node), calls };
+  return { key, kind, line: line || 1, endLine: node?.loc?.end?.line || line || 1, fingerprint: fingerprint(body || node), calls };
 }
 
 function parsePhp(source, file) {
@@ -195,8 +197,74 @@ function parseDocker(source) {
   return { language: 'Dockerfile', units, features: [], structuralOnly: true };
 }
 
+function parseMarkdown(source) {
+  const units = [];
+  let fenced = false;
+  for (const [index, line] of source.split(/\r?\n/).entries()) {
+    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
+    if (fenced) continue;
+    const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (heading) units.push(unit(`heading:${heading[1].length}:${heading[2].slice(0, 100)}`, 'heading', line, line, [], index + 1));
+  }
+  return { language: 'Markdown', units, features: [], structuralOnly: true };
+}
+
+function parseData(source, language) {
+  const value = language === 'JSON' ? JSON.parse(source) : yaml.parse(source);
+  const units = [];
+  function visit(item, key, depth) {
+    if (units.length >= 256 || depth > 8 || item === null || typeof item !== 'object') return;
+    if (Array.isArray(item)) {
+      units.push(unit(`array:${key || 'root'}`, 'array', item, { length: item.length }, [], 1));
+      item.slice(0, 8).forEach((part, index) => visit(part, `${key}[${index}]`, depth + 1));
+      return;
+    }
+    for (const [name, part] of Object.entries(item)) {
+      if (units.length >= 256) break;
+      const child = key ? `${key}.${name}` : name;
+      units.push(unit(`key:${child.slice(0, 160)}`, 'key', part, { type: Array.isArray(part) ? 'array' : typeof part }, [], 1));
+      visit(part, child, depth + 1);
+    }
+  }
+  visit(value, '', 0);
+  return { language, units, features: [], structuralOnly: true };
+}
+
+function parseMarkup(source, language) {
+  const ast = language === 'HTML' ? html.parse(source, { comments: false }) : html.baseParse(source, { comments: false });
+  const units = [];
+  const semantic = /^(html|head|body|main|header|footer|nav|section|article|form|script|style|template|h[1-6]|link|meta)$/i;
+  function visit(children, parent, depth = 0) {
+    if (depth > 32 || units.length >= 256) return;
+    for (const [index, part] of (children || []).entries()) {
+      if (part.type !== 1) continue;
+      const tag = String(part.tag);
+      const id = part.props?.find(prop => prop.type === 6 && prop.name === 'id')?.value?.content || '';
+      const key = `${parent}/${tag}[${index}]${id ? `#${id}` : ''}`;
+      if (units.length < 256 && (language === 'XML' || semantic.test(tag) || id)) {
+        units.push(unit(`element:${key.slice(0, 160)}`, 'element', part, { tag, id, children: part.children?.length || 0 }, [], part.loc?.start?.line));
+      }
+      visit(part.children, key, depth + 1);
+    }
+  }
+  visit(ast.children, '');
+  return { language, units, features: [], structuralOnly: true };
+}
+
 function parseExternal(executable, args, source, env = {}) {
-  const output = execFileSync(executable, args, { input: source, encoding: 'utf8', windowsHide: true, timeout: 60000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env, ...env } });
+  let output;
+  try {
+    output = execFileSync(executable, args, { input: source, encoding: 'utf8', windowsHide: true, timeout: 60000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env, ...env } });
+  } catch (error) {
+    try {
+      const result = JSON.parse(String(error.stdout || ''));
+      if (result.error) throw new Error(result.error);
+    } catch (parsed) {
+      if (parsed instanceof SyntaxError) throw error;
+      throw parsed;
+    }
+    throw error;
+  }
   const result = JSON.parse(output);
   if (result.error) throw new Error(result.error);
   return result;
@@ -209,10 +277,16 @@ function parseSource(source, file, options = {}) {
   if (extension === '.vue') return parseVue(source, file);
   if (extension === '.css') return parseCss(source);
   if (extension === '.sql') return parseSql(source);
+  if (['.md', '.markdown', '.mdx'].includes(extension)) return parseMarkdown(source);
+  if (extension === '.json') return parseData(source, 'JSON');
+  if (['.yaml', '.yml'].includes(extension)) return parseData(source, 'YAML');
+  if (['.html', '.htm'].includes(extension)) return parseMarkup(source, 'HTML');
+  if (extension === '.xml') return parseMarkup(source, 'XML');
   if (extension === '.py') return parseExternal(options.python || 'python', ['-B', path.join(__dirname, 'helpers', 'python_ast.py')], source);
   if (extension === '.go') return parseExternal(options.go || 'go', ['run', path.join(__dirname, 'helpers', 'go_ast.go')], source, { GOCACHE: path.join(os.tmpdir(), 'agentorchestra-go-cache') });
   if (path.basename(file).toLowerCase().startsWith('dockerfile')) return parseDocker(source);
   throw new Error(`Formato sem parser: ${file}`);
 }
 
-module.exports = { parseSource, canonical, fingerprint, parsePhp, parseJs, parseVue, parseCss, parseSql, parseDocker };
+module.exports = { parseSource, canonical, fingerprint, parsePhp, parseJs, parseVue, parseCss, parseSql, parseDocker,
+  parseMarkdown, parseData, parseMarkup };

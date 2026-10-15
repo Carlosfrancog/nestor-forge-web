@@ -40,3 +40,19 @@ test('Python and Go extract declarations with their standard AST parsers', () =>
   const go = parseSource('package sample\ntype Client struct{}\nfunc (c *Client) Run() { Ping() }\n', 'client.go');
   assert.ok(go.units.some(unit => unit.key === 'method:Client.Run' && unit.calls.includes('Ping')));
 });
+
+test('Markdown, HTML, XML, JSON and YAML expose useful structure', () => {
+  const markdown = parseSource('# Overview\n```md\n# hidden\n```\n## Usage', 'README.md');
+  assert.deepEqual(markdown.units.map(unit => unit.key), ['heading:1:Overview', 'heading:2:Usage']);
+  const html = parseSource('<!doctype html><html><body><main id="app"><section>Hi</section></main></body></html>', 'index.html');
+  assert.ok(html.units.some(unit => unit.key.includes('main') && unit.key.includes('#app')));
+  assert.ok(parseSource('<root><item id="one" /></root>', 'data.xml').units.some(unit => unit.key.includes('item')));
+  assert.ok(parseSource('{"scripts":{"test":"node --test"}}', 'package.json').units.some(unit => unit.key === 'key:scripts.test'));
+  assert.ok(parseSource('{"optional":null}', 'config.json').units.some(unit => unit.key === 'key:optional'));
+  assert.ok(parseSource('services:\n  api:\n    port: 8080\n', 'compose.yaml').units.some(unit => unit.key === 'key:services.api.port'));
+});
+
+test('Python helper reads UTF-8 source on Windows', () => {
+  const python = parseSource('"""ação, café e emoji 😀"""\nclass Serviço:\n    pass\n', 'servico.py');
+  assert.ok(python.units.some(unit => unit.key === 'class:Serviço'));
+});

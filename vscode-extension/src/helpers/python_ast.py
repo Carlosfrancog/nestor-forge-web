@@ -31,7 +31,9 @@ def unit(key, kind, node):
 
 
 def main():
-    tree = ast.parse(sys.stdin.read())
+    # Node envia o conteúdo em UTF-8; a codificação do stdin no Windows pode
+    # seguir a página de código local e corromper caracteres fora do ASCII.
+    tree = ast.parse(sys.stdin.buffer.read().decode("utf-8-sig"))
     units = []
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
@@ -41,12 +43,14 @@ def main():
                     units.append(unit(f"method:{node.name}.{child.name}", "method", child))
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             units.append(unit(f"function:{node.name}", "function", node))
-    print(json.dumps({"language": "Python", "units": units, "features": []}, ensure_ascii=False))
+    # ASCII JSON via \u escapes also survives a non-UTF-8 stdout code page.
+    print(json.dumps({"language": "Python", "units": units, "features": []}, ensure_ascii=True))
 
 
 if __name__ == "__main__":
     try:
         main()
-    except SyntaxError as exc:
-        print(json.dumps({"error": f"Python: linha {exc.lineno}: {exc.msg}"}))
+    except (SyntaxError, UnicodeError) as exc:
+        message = f"linha {exc.lineno}: {exc.msg}" if isinstance(exc, SyntaxError) else "arquivo não está em UTF-8"
+        print(json.dumps({"error": f"Python: {message}"}, ensure_ascii=True))
         raise SystemExit(2)

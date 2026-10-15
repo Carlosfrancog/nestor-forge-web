@@ -3,10 +3,10 @@
 const path = require('node:path');
 const { Worker } = require('node:worker_threads');
 
-function scanInWorker(root, { python, go, onProgress, signal } = {}) {
+function scanInWorker(root, { python, go, cacheDir, onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(path.join(__dirname, 'projectMapWorker.js'), {
-      workerData: { root, options: { python, go } }
+      workerData: { root, options: { python, go, cacheDir } }
     });
     let settled = false;
     const finish = (error, report) => {
