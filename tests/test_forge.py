@@ -147,19 +147,39 @@ class ForgeOutputTests(unittest.TestCase):
                 {path.name for path in (output / "nestor_forge").glob("*.py")},
                 {"__init__.py", "compiler.py", "domain.py", "renderers.py", "targets.py"},
             )
-            self.assertIn('href="./downloads/agentes-contexto.zip"', (output / "index.html").read_text(encoding="utf-8"))
-            with zipfile.ZipFile(output / "downloads" / "agentes-contexto.zip") as agents:
+            self.assertIn('href="./downloads/agentes-contexto-importavel.zip"', (output / "index.html").read_text(encoding="utf-8"))
+            archive = output / "downloads" / "agentes-contexto-importavel.zip"
+            with zipfile.ZipFile(archive) as agents:
                 names = set(agents.namelist())
-                self.assertEqual(len(names), 19)
-                self.assertIn("AGENTES-CONTEXTO.md", names)
+                self.assertEqual(len(names), 21)
+                self.assertIn("agentorchestra-package.json", names)
+                self.assertIn("install.sh", names)
+                self.assertIn("files/.agents/skills/leitura-de-projeto/AGENTES-CONTEXTO.md", names)
+                manifest = json.loads(agents.read("agentorchestra-package.json"))
+                self.assertEqual(len(manifest["entrypoints"]), 3)
                 for slug in ("leitura-de-projeto", "historico-git", "contexto-de-stack"):
-                    self.assertIn(f".agentorchestra/specs/{slug}.json", names)
-                    self.assertIn(f".agents/skills/{slug}/SKILL.md", names)
-                    self.assertIn(f".claude/agents/{slug}.md", names)
-                    self.assertIn(f".codex/agents/{slug}.toml", names)
-                    spec = json.loads(agents.read(f".agentorchestra/specs/{slug}.json"))
+                    self.assertIn(f"files/.agentorchestra/specs/{slug}.json", names)
+                    self.assertIn(f"files/.agents/skills/{slug}/SKILL.md", names)
+                    self.assertIn(f"files/.claude/agents/{slug}.md", names)
+                    self.assertIn(f"files/.codex/agents/{slug}.toml", names)
+                    spec = json.loads(agents.read(f"files/.agentorchestra/specs/{slug}.json"))
                     self.assertFalse(spec["permissions"]["write_code"])
                     self.assertFalse(spec["permissions"]["run_active_tests"])
+            target = Path(directory) / "project"
+            target.mkdir()
+            for command in ("inspect", "import"):
+                result = subprocess.run(
+                    [sys.executable, "-B", str(root / "vscode-extension" / "backend" / "share.py"),
+                     command, "--archive", str(archive), "--target", str(target)],
+                    capture_output=True, text=True, check=False, encoding="utf-8",
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                report = json.loads(result.stdout)
+                self.assertTrue(report["ok"])
+                self.assertEqual(len(report["files"]), 19)
+            for slug in ("leitura-de-projeto", "historico-git", "contexto-de-stack"):
+                self.assertTrue((target / ".codex" / "agents" / f"{slug}.toml").is_file())
+                self.assertTrue((target / ".claude" / "agents" / f"{slug}.md").is_file())
             update_manifest = output / "updates" / "agentorchestra.json"
             version = json.loads((root / "vscode-extension" / "package.json").read_text(encoding="utf-8"))["version"]
             package = root / "dist" / f"agentorchestra-{version}.vsix"

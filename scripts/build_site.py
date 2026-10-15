@@ -6,9 +6,9 @@ import shutil
 import zipfile
 
 if __package__:
-    from .build_context_agents import build_context_agents
+    from .build_context_agents import ARCHIVE_NAME, build_context_agents
 else:
-    from build_context_agents import build_context_agents
+    from build_context_agents import ARCHIVE_NAME, build_context_agents
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +31,8 @@ def build_site(output: Path = OUTPUT) -> Path:
     downloads = output / "downloads"
     if downloads.is_dir():
         for previous in downloads.glob("agentorchestra-*.vsix"):
+            previous.unlink()
+        for previous in downloads.glob("agentes-contexto*.zip"):
             previous.unlink()
     if vsix.is_file():
         with zipfile.ZipFile(vsix) as package:
@@ -68,7 +70,7 @@ def build_site(output: Path = OUTPUT) -> Path:
     html = html.replace("__AGENTORCHESTRA_DOWNLOAD__", action)
     index.write_text(html, encoding="utf-8")
 
-    build_context_agents(downloads / "agentes-contexto.zip")
+    build_context_agents(downloads / ARCHIVE_NAME)
 
     package_output = output / "nestor_forge"
     package_output.mkdir(parents=True, exist_ok=True)

@@ -33,6 +33,8 @@ O pacote inclui um manifesto com hashes, os arquivos do agente e um `install.sh`
 
 Também é possível importar ZIPs antigos que contenham `AGENT.md` ou `agent.md` na pasta principal, como pacotes da Forja. Antes de instalar, a extensão mostra os arquivos de destino; ela cria a skill central e as entradas de agente para Claude e Codex, mantendo os arquivos e links internos do ZIP. Outros formatos precisam ser convertidos ou exportados pelo AgentOrchestra.
 
+O ZIP **Agentes de contexto** disponível na página de instalação usa o formato nativo do AgentOrchestra e instala três agentes no mesmo projeto. Selecione esse ZIP no comando de importação; não é necessário extraí-lo antes.
+
 Arquivos existentes no destino bloqueiam a importação, sem sobrescrita. Referências relativas para arquivos fora dessas pastas e referências absolutas ao projeto de origem exigem ajuste antes da exportação. A operação depende do Python configurado em `agentOrchestra.pythonPath`.
 
 ## Executar agentes com roteiros prontos

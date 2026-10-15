@@ -3,15 +3,19 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
-import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "vscode-extension" / "backend"))
+from share import export_bundle  # noqa: E402
+
 SPECS = ROOT / "examples" / "context-agents"
 NAMES = ("leitura-de-projeto", "historico-git", "contexto-de-stack")
+ARCHIVE_NAME = "agentes-contexto-importavel.zip"
 README = """# Agentes de contexto
 
 Este pacote contém três agentes de leitura para Claude Code e Codex:
@@ -20,16 +24,16 @@ Este pacote contém três agentes de leitura para Claude Code e Codex:
 - **Histórico Git:** evolução e decisões rastreadas em commits.
 - **Contexto de Stack:** tecnologias, versões e comandos declarados.
 
-Extraia o ZIP na raiz do repositório em que deseja usar os agentes, preservando
-as pastas `.agents`, `.claude`, `.codex` e `.agentorchestra`. Revise os caminhos
-de destino antes de extrair; arquivos existentes com o mesmo nome exigem sua
-decisão. Reinicie a janela do VS Code para atualizar o catálogo do AgentOrchestra.
+No VS Code, execute **AgentOrchestra: Importar pacote de agente**, selecione
+este ZIP e o projeto de destino. A prévia lista os arquivos dos três agentes
+e sinaliza conflitos antes da instalação. Reinicie a janela se o catálogo não
+for atualizado imediatamente.
 
 As especificações de origem ficam em `.agentorchestra/specs/`; as instruções
 centrais geradas ficam em `.agents/skills/`. Os três agentes fazem leitura e
-análise, sem executar testes ativos ou alterar código. Este ZIP é um pacote de
-projeto para extração manual, não um arquivo VSIX nem um pacote individual de
-importação do AgentOrchestra.
+análise, sem executar testes ativos ou alterar código. Para instalar sem a
+extensão, extraia o ZIP e execute `sh install.sh /caminho/do/projeto` em um
+ambiente com shell POSIX. Este ZIP não é um VSIX.
 """
 
 
@@ -57,15 +61,19 @@ def build_context_agents(output: Path) -> Path:
             raise RuntimeError(f"Número inesperado de artefatos: {len(files)}")
         for name in NAMES:
             files[f".agentorchestra/specs/{name}.json"] = (SPECS / f"{name}.json").read_bytes()
-        files["AGENTES-CONTEXTO.md"] = README.encode("utf-8")
+        files[".agents/skills/leitura-de-projeto/AGENTES-CONTEXTO.md"] = README.encode("utf-8")
+        for relative, data in files.items():
+            destination = project.joinpath(*relative.split("/"))
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
 
+        archive = Path(temporary) / "agentes-contexto.zip"
+        export_bundle(project, [project / ".claude" / "agents" / f"{name}.md" for name in NAMES], archive)
         output.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for name, data in sorted(files.items()):
-                archive.writestr(name, data)
+        shutil.copy2(archive, output)
     return output
 
 
 if __name__ == "__main__":
-    destination = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "dist" / "site" / "downloads" / "agentes-contexto.zip"
+    destination = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "dist" / "site" / "downloads" / ARCHIVE_NAME
     print(build_context_agents(destination))

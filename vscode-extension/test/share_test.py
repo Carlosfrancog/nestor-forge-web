@@ -11,7 +11,7 @@ import unittest
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-from share import export_package, import_package, inspect_package, read_package  # noqa: E402
+from share import export_bundle, export_package, import_package, inspect_package, read_package  # noqa: E402
 
 
 class SharePackageTest(unittest.TestCase):
@@ -68,6 +68,18 @@ class SharePackageTest(unittest.TestCase):
             import_package(archive, self.target)
         self.assertEqual(existing.read_text(encoding="utf-8"), "keep me")
         self.assertFalse((self.target / ".claude/agents/orders.md").exists())
+
+    def test_bundle_imports_multiple_agents_at_once(self) -> None:
+        first = self.example()
+        self.write(".agents/skills/review/SKILL.md", "# Review\n")
+        second = self.write(".claude/agents/review.md", "---\nname: review\nskills:\n  - review\n---\n\n# Review\n")
+        archive = self.base / "bundle.zip"
+        result = export_bundle(self.source, [first, second], archive)
+        self.assertEqual(len(result["entrypoints"]), 2)
+        self.assertEqual(inspect_package(archive, self.target)["conflicts"], [])
+        import_package(archive, self.target)
+        self.assertTrue((self.target / ".claude/agents/orders.md").is_file())
+        self.assertTrue((self.target / ".claude/agents/review.md").is_file())
 
     def test_codex_selection_includes_skills_required_by_related_claude_agent(self) -> None:
         self.example()

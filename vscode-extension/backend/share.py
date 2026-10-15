@@ -231,8 +231,28 @@ def shell_installer(paths: list[str]) -> str:
 
 
 def export_package(root: Path, entry: Path, output: Path) -> dict:
-    selected, payload = collect(root, entry)
-    manifest = {"schemaVersion": SCHEMA, "entrypoint": selected,
+    return export_bundle(root, [entry], output)
+
+
+def export_bundle(root: Path, entries: list[Path], output: Path) -> dict:
+    """Exporta um ou mais agentes relacionados no mesmo pacote nativo."""
+    if not entries:
+        raise ValueError("Selecione ao menos um agente para exportar.")
+    selected: list[str] = []
+    payload: dict[str, bytes] = {}
+    for entry in entries:
+        entrypoint, related = collect(root, entry)
+        if entrypoint in selected:
+            raise ValueError(f"Agente selecionado mais de uma vez: {entrypoint}")
+        selected.append(entrypoint)
+        for relative, data in related.items():
+            if relative in payload and payload[relative] != data:
+                raise ValueError(f"Conteúdo conflitante no pacote: {relative}")
+            payload[relative] = data
+    if len(payload) > MAX_FILES or sum(map(len, payload.values())) > MAX_TOTAL:
+        raise ValueError("O pacote excede os limites de tamanho ou arquivos.")
+    payload = dict(sorted(payload.items()))
+    manifest = {"schemaVersion": SCHEMA, "entrypoint": selected[0], "entrypoints": selected,
                 "files": [{"path": relative, "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
                           for relative, data in payload.items()]}
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -249,7 +269,8 @@ def export_package(root: Path, entry: Path, output: Path) -> dict:
         if created:
             output.unlink(missing_ok=True)
         raise
-    return {"ok": True, "entrypoint": selected, "files": list(payload), "archive": str(output)}
+    return {"ok": True, "entrypoint": selected[0], "entrypoints": selected,
+            "files": list(payload), "archive": str(output)}
 
 
 def legacy_package(archive: zipfile.ZipFile, infos: list[zipfile.ZipInfo]) -> tuple[dict, dict[str, bytes]]:
@@ -371,6 +392,16 @@ def read_native_package(archive: zipfile.ZipFile, names: list[str]) -> tuple[dic
     if entrypoint not in paths or not (entrypoint.startswith((".claude/agents/", ".codex/agents/"))
                                        or entrypoint.endswith("/SKILL.md") and entrypoint.startswith((".agents/skills/", ".claude/skills/", ".codex/skills/"))):
         raise ValueError("O agente principal não está no pacote.")
+    entrypoints = manifest.get("entrypoints")
+    if entrypoints is not None:
+        if (not isinstance(entrypoints, list) or not entrypoints or entrypoints[0] != entrypoint
+                or len(entrypoints) != len(set(str(value).casefold() for value in entrypoints))):
+            raise ValueError("Lista de agentes inválida no manifesto.")
+        for value in entrypoints:
+            selected = valid_path(value)
+            if selected not in paths or not (selected.startswith((".claude/agents/", ".codex/agents/"))
+                                             or selected.endswith("/SKILL.md") and selected.startswith((".agents/skills/", ".claude/skills/", ".codex/skills/"))):
+                raise ValueError(f"Agente ausente no pacote: {selected}")
     payload: dict[str, bytes] = {}
     for item, relative in zip(entries, paths):
         data = archive.read(f"files/{relative}")
