@@ -2,8 +2,8 @@
   "name": "agentorchestra",
   "displayName": "Agent Orchestra",
   "description": "Explore agentes e skills, mapeie o projeto e gere contexto para documentação.",
-  "version": "0.5.2",
-  "publisher": "CarlosFranco",
+  "version": "0.5.3",
+  "publisher": "CarlosEFranco",
   "icon": "media/agents.png",
   "engines": {
     "vscode": "^1.85.0"
