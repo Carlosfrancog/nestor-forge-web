@@ -5,6 +5,7 @@ import json
 from io import StringIO
 import subprocess
 import sys
+import zipfile
 from types import SimpleNamespace
 from unittest.mock import patch
 try:
@@ -146,6 +147,19 @@ class ForgeOutputTests(unittest.TestCase):
                 {path.name for path in (output / "nestor_forge").glob("*.py")},
                 {"__init__.py", "compiler.py", "domain.py", "renderers.py", "targets.py"},
             )
+            self.assertIn('href="./downloads/agentes-contexto.zip"', (output / "index.html").read_text(encoding="utf-8"))
+            with zipfile.ZipFile(output / "downloads" / "agentes-contexto.zip") as agents:
+                names = set(agents.namelist())
+                self.assertEqual(len(names), 19)
+                self.assertIn("AGENTES-CONTEXTO.md", names)
+                for slug in ("leitura-de-projeto", "historico-git", "contexto-de-stack"):
+                    self.assertIn(f".agentorchestra/specs/{slug}.json", names)
+                    self.assertIn(f".agents/skills/{slug}/SKILL.md", names)
+                    self.assertIn(f".claude/agents/{slug}.md", names)
+                    self.assertIn(f".codex/agents/{slug}.toml", names)
+                    spec = json.loads(agents.read(f".agentorchestra/specs/{slug}.json"))
+                    self.assertFalse(spec["permissions"]["write_code"])
+                    self.assertFalse(spec["permissions"]["run_active_tests"])
             update_manifest = output / "updates" / "agentorchestra.json"
             version = json.loads((root / "vscode-extension" / "package.json").read_text(encoding="utf-8"))["version"]
             package = root / "dist" / f"agentorchestra-{version}.vsix"

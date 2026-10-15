@@ -40,6 +40,8 @@ python scripts/build_site.py
 python -m http.server 8765 --directory dist/site
 ```
 
+O build também gera `dist/site/downloads/agentes-contexto.zip` a partir das três especificações em `examples/context-agents/`, usando `scripts/agent_run.py`. O ZIP aparece na seção de instalação do AgentOrchestra e contém agentes de leitura de projeto, histórico Git e stack para Claude Code e Codex. Extraia-o na raiz do projeto de destino; ele não é um VSIX.
+
 Abra `http://localhost:8765/`. Não abra `site/index.html` diretamente pelo protocolo `file://`, pois o navegador precisa carregar o worker e o compilador por HTTP.
 
 

@@ -256,11 +256,12 @@ h1 {
 .extension-features li::marker { color: #7fddbe; }
 .extension-install { border: 1px solid #d5e8e2; border-radius: 17px; color: var(--ink); box-shadow: 0 12px 26px #0002; }
 .extension-download { border-radius: 10px; }
+.context-agents-download { border-radius: 10px; }
 .extension-unavailable { border-radius: 10px; }
 .extension-note a { color: var(--accent-deep); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 footer { border-top-color: var(--line); }
 
-:is(.brand, .intro-link, .tab, .text-button, .primary-button, .download-button, .extension-download, .prompt-header button, .details summary):focus-visible {
+:is(.brand, .intro-link, .tab, .text-button, .primary-button, .download-button, .extension-download, .context-agents-download, .prompt-header button, .details summary):focus-visible {
   outline: 3px solid #4bb9a2;
   outline-offset: 3px;
 }

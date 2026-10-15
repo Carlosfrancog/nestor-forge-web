@@ -5,6 +5,11 @@ import json
 import shutil
 import zipfile
 
+if __package__:
+    from .build_context_agents import build_context_agents
+else:
+    from build_context_agents import build_context_agents
+
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "dist" / "site"
@@ -62,6 +67,8 @@ def build_site(output: Path = OUTPUT) -> Path:
     html = html.replace("__AGENTORCHESTRA_VERSION__", version)
     html = html.replace("__AGENTORCHESTRA_DOWNLOAD__", action)
     index.write_text(html, encoding="utf-8")
+
+    build_context_agents(downloads / "agentes-contexto.zip")
 
     package_output = output / "nestor_forge"
     package_output.mkdir(parents=True, exist_ok=True)
