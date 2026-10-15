@@ -2,7 +2,7 @@
   "name": "nestor-forge-agent-orchestra",
   "displayName": "Agent Orchestra (Nestor Forge)",
   "description": "Explore agentes e skills, mapeie o projeto e gere contexto para documentação.",
-  "version": "0.5.8",
+  "version": "0.5.9",
   "publisher": "CarlosEFranco",
   "icon": "media/agents.png",
   "engines": {
