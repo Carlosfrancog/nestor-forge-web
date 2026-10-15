@@ -9,7 +9,7 @@ const test = require('node:test');
 const { compareVersions, validateRelease, verifyPackage, resolveCli } = require('../src/updates');
 
 const manifest = 'https://example.test/project/updates/agentorchestra.json';
-const id = 'nestor-forge.agentorchestra';
+const id = 'CarlosFranco.agentorchestra';
 const release = {
   schemaVersion: 1,
   extensionId: id,

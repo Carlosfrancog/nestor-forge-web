@@ -2,8 +2,8 @@
   "name": "agentorchestra",
   "displayName": "AgentOrchestra",
   "description": "Explore agentes e skills, mapeie o projeto e gere contexto para documentação.",
-  "version": "0.5.0",
-  "publisher": "nestor-forge",
+  "version": "0.5.1",
+  "publisher": "CarlosFranco",
   "icon": "media/agents.png",
   "engines": {
     "vscode": "^1.85.0"
