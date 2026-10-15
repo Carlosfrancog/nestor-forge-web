@@ -21,13 +21,22 @@
       <main>
         <div class="intro">
           <div>
-            <p class="eyebrow">NOVA ESPECIFICAÇÃO <span>—</span> 01 / 02</p>
-            <h1>Criar agente</h1>
-            <p class="intro-copy">Defina o trabalho e os limites do agente. A Forja compila os arquivos e prepara a instrução para Claude ou Codex.</p>
-            <a class="intro-link" href="#agentorchestra">Instalar AgentOrchestra no VS Code <span aria-hidden="true">↓</span></a>
+            <p class="eyebrow">NESTOR FORGE <span>·</span> CRIAÇÃO GUIADA</p>
+            <h1>Seu agente começa aqui.</h1>
+            <p class="intro-copy">Descreva a missão, escolha o destino e baixe um pacote pronto para adaptar ao seu projeto.</p>
+            <div class="intro-actions">
+              <a class="intro-link intro-link-primary" href="#editor-heading">Começar a criar <span aria-hidden="true">↘</span></a>
+              <a class="intro-link" href="#agentorchestra">Instalar extensão VS Code <span aria-hidden="true">↓</span></a>
+            </div>
           </div>
-          <div class="intro-index" aria-hidden="true">SPEC / JSON</div>
+          <div class="intro-index" aria-hidden="true"><span>AGENT / 01</span><strong>Ideia<br>→ agente</strong><small>SPEC.JSON&nbsp; / &nbsp;ZIP</small></div>
         </div>
+
+        <ol class="flow-steps" aria-label="Etapas de criação">
+          <li><span>01</span><strong>Descreva</strong><small>Missão e limites</small></li>
+          <li><span>02</span><strong>Escolha</strong><small>Codex, Claude ou ambos</small></li>
+          <li><span>03</span><strong>Baixe</strong><small>Pacote e instruções</small></li>
+        </ol>
 
         <div class="workspace">
           <section class="panel editor-panel" aria-labelledby="editor-heading">
@@ -81,7 +90,7 @@
           </section>
 
           <aside class="panel output-panel" aria-labelledby="output-heading">
-            <div class="panel-heading"><div><p class="step">02 — SAÍDA</p><h2 id="output-heading">Pacote do agente</h2></div></div>
+            <div class="panel-heading"><div><p class="step">02 — SAÍDA</p><h2 id="output-heading">Pacote do agente</h2><p class="panel-subtitle">Escolha onde seu agente vai trabalhar.</p></div></div>
             <fieldset class="destination"><legend class="sr-only">Plataforma de destino</legend>
               <label class="destination-option selected"><input type="radio" name="target" value="codex" checked><span class="destination-index" aria-hidden="true">01</span><span><strong>Codex</strong><small>Especificação para adaptar</small></span><span class="radio-mark"></span></label>
               <label class="destination-option"><input type="radio" name="target" value="claude"><span class="destination-index" aria-hidden="true">02</span><span><strong>Claude</strong><small>Plugin para Cowork e Claude Code</small></span><span class="radio-mark"></span></label>
@@ -110,7 +119,7 @@
             <div><p class="step">EXTENSÃO PARA VS CODE</p><h2 id="extension-heading">AgentOrchestra <span>v__AGENTORCHESTRA_VERSION__</span></h2></div>
           </div>
           <div class="extension-grid">
-            <div>
+            <div class="extension-about">
               <p class="extension-copy">Crie agentes com a Forja sem sair do editor. Explore agentes e skills instalados, leia as instruções em Markdown e execute scripts de análise manualmente.</p>
               <ul class="extension-features">
                 <li>Catálogo de agentes Codex, Claude e skills por projeto</li>
