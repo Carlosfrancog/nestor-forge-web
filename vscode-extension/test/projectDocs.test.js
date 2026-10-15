@@ -75,6 +75,18 @@ test('publishing preserves manual notes and replaces only manifest-owned notes',
   assert.equal(handoff.mapHash.length, 64);
 });
 
+test('copies existing documentation into a stage that does not already exist', async t => {
+  const root = await project(t);
+  await writeProjectDocs(root, report(root));
+  const copy = fs.cp;
+  t.mock.method(fs, 'cp', async (source, destination, options) => {
+    await assert.rejects(fs.access(destination), { code: 'ENOENT' });
+    return copy(source, destination, options);
+  });
+  const result = await writeProjectDocs(root, report(root, { revision: 'next' }));
+  assert.ok((await fs.readFile(result.indexPath, 'utf8')).includes('next'));
+});
+
 test('generation failure leaves published docs and manual files untouched', async t => {
   const root = await project(t);
   const first = await writeProjectDocs(root, report(root));

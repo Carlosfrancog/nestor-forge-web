@@ -256,8 +256,9 @@ async function writeProjectDocs(root, report, options = {}) {
   const markdown = generatedMarkdown(projectRoot, report, handoff, config);
   const parent = path.dirname(destination);
   await fs.mkdir(parent, { recursive: true });
-  const stage = await fs.mkdtemp(path.join(parent, '.agentorchestra-docs-stage-'));
-  const backup = `${stage}-backup`;
+  const stagingRoot = await fs.mkdtemp(path.join(parent, '.agentorchestra-docs-stage-'));
+  const stage = path.join(stagingRoot, 'contents');
+  const backup = path.join(stagingRoot, 'backup');
   let oldMoved = false;
   let published = false;
   try {
@@ -270,6 +271,7 @@ async function writeProjectDocs(root, report, options = {}) {
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }
+    await fs.mkdir(stage, { recursive: true });
     for (const filename of markdown.keys()) {
       if (previous.includes(filename)) continue;
       try {
@@ -307,6 +309,7 @@ async function writeProjectDocs(root, report, options = {}) {
   } finally {
     if (!published) await fs.rm(stage, { recursive: true, force: true });
     if (oldMoved) await fs.rm(backup, { recursive: true, force: true });
+    await fs.rm(stagingRoot, { recursive: true, force: true });
   }
 }
 
