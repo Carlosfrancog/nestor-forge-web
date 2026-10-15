@@ -6,6 +6,7 @@ const path = require('node:path');
 const { promisify } = require('node:util');
 const { execFile } = require('node:child_process');
 const { parseSource } = require('./structural');
+const { createLaravelTaxonomy } = require('./moduleTaxonomy');
 
 const execFileAsync = promisify(execFile);
 const CACHE_VERSION = 3;
@@ -21,10 +22,21 @@ const SOURCE_ROOTS = new Set(['src', 'app', 'lib', 'packages', 'apps', 'internal
 const LAYERS = [
   ['test', /^(test|tests|__tests__|spec|specs)$/i],
   ['controller', /^(controller|controllers|handler|handlers)$/i],
+  ['request', /^(request|requests)$/i],
   ['service', /^(service|services|usecase|usecases)$/i],
+  ['action', /^(action|actions|dto|dtos)$/i],
   ['model', /^(model|models|entity|entities)$/i],
+  ['policy', /^(policy|policies|observer|observers)$/i],
+  ['event', /^(event|events|listener|listeners)$/i],
+  ['job', /^(job|jobs|notification|notifications)$/i],
+  ['repository', /^(repository|repositories)$/i],
   ['view', /^(view|views|page|pages|component|components)$/i],
+  ['composable', /^(composable|composables)$/i],
+  ['layout', /^(layout|layouts)$/i],
   ['route', /^(route|routes|router|routers)$/i],
+  ['middleware', /^(middleware|middlewares)$/i],
+  ['provider', /^(provider|providers)$/i],
+  ['helper', /^(helper|helpers|trait|traits)$/i],
   ['database', /^(database|db|migration|migrations|schema)$/i],
   ['config', /^(config|configuration)$/i],
   ['documentation', /^(docs|doc|documentation)$/i],
@@ -197,7 +209,7 @@ async function pruneLegacyCache(root) {
 
 /**
  * Build a local, deterministic inventory. Optional documentation.json accepts
- * {maxFileBytes, exclude:[relative directory/file prefixes], modules:[{id,label,paths:[prefixes]}]}.
+ * {maxFileBytes, exclude:[relative directory/file prefixes], modules:[{id,label,paths:[prefixes]}], taxonomy:{...}}.
  * Content hashes cache AST summaries; no embeddings or network requests are used.
  */
 async function scanProject(root, { cacheDir, python, go, onProgress, signal } = {}) {
@@ -264,15 +276,12 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
         const stat = await fs.stat(path.join(folder.absolute, entry.name));
         bytes = stat.size;
       } catch (error) { warnings.push({ kind: 'read', path: relative, message: error.message }); continue; }
-      const assignment = moduleAndLayer(relative, config, framework);
       const language = languageFor(relative);
       const file = { id: relative, path: relative, folder: folder.relative,
-        module: assignment.module, layer: assignment.layer, language: language || 'unknown',
+        module: null, layer: null, language: language || 'unknown',
         bytes, hash: null, symbols: [], status: 'without-parser' };
       files.push(file);
       stats.files++;
-      if (!modules.has(assignment.module)) modules.set(assignment.module, { id: assignment.module, label: assignment.label, kind: assignment.kind, path: assignment.path, fileCount: 0 });
-      modules.get(assignment.module).fileCount++;
       if (bytes > limit) { file.status = 'too-large'; stats.tooLarge++; continue; }
       let content;
       try { content = await fs.readFile(path.join(folder.absolute, entry.name)); }
@@ -309,6 +318,20 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
 
   files.sort((a, b) => compare(a.path, b.path));
   folders.sort((a, b) => compare(a.path, b.path));
+  const taxonomy = framework === 'Laravel'
+    ? createLaravelTaxonomy(files.map(file => file.path), config.taxonomy) : null;
+  for (const file of files) {
+    const fallback = moduleAndLayer(file.path, config, framework);
+    const domain = fallback.kind === 'configured' || fallback.kind === 'domain' || fallback.kind === 'package'
+      ? null : taxonomy?.classify(file.path);
+    const assignment = domain ? { ...domain, layer: fallback.layer } : fallback;
+    file.module = assignment.module;
+    file.layer = assignment.layer;
+    if (!modules.has(assignment.module)) modules.set(assignment.module, {
+      id: assignment.module, label: assignment.label, kind: assignment.kind, path: assignment.path, fileCount: 0,
+    });
+    modules.get(assignment.module).fileCount++;
+  }
   const known = new Set(files.map(file => file.path));
   const edgeCounts = new Map();
   for (const [source, imports] of contentImports) for (const specifier of imports) {

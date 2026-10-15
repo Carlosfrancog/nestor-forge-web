@@ -6,6 +6,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { scanProject } = require('../src/projectMap');
+const { buildHandoff } = require('../src/projectDocs');
 
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentorchestra-project-map-'));
@@ -146,16 +147,68 @@ test('Laravel distinguishes domain folders from framework layers', async t => {
   const domain = report.modules.find(item => item.id === 'app/Modules/Billing');
   assert.deepEqual({ kind: domain.kind, fileCount: domain.fileCount }, { kind: 'domain', fileCount: 2 });
   assert.equal(report.modules.find(item => item.id === 'app/Http').kind, 'layer');
-  assert.equal(report.modules.find(item => item.id === 'app/Models').kind, 'layer');
+  assert.equal(report.modules.find(item => item.id === 'domain:User').kind, 'domain');
   assert.equal(report.modules.find(item => item.id === 'routes').kind, 'layer');
   assert.ok(report.edges.some(edge => edge.source === 'app/Http/Controllers/HomeController.php' && edge.target === 'app/Modules/Billing/Services/InvoiceService.php'));
 });
 
-test('Laravel without explicit domain folders reports technical groups honestly', async t => {
+test('Laravel maps a model and matching controller to one domain across layers', async t => {
   const { root, write } = await fixture(t);
   await write('composer.json', JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
   await write('app/Http/Controllers/OrderController.php', '<?php class OrderController {}');
   await write('app/Models/Order.php', '<?php class Order {}');
+  const report = await scanProject(root);
+  const order = report.modules.find(item => item.id === 'domain:Order');
+  assert.deepEqual({ kind: order.kind, fileCount: order.fileCount, path: order.path },
+    { kind: 'domain', fileCount: 2, path: 'app/Models/Order.php' });
+  assert.equal(report.warnings.some(item => item.message.includes('camadas técnicas')), false);
+});
+
+test('Graphify-style taxonomy joins Laravel domains across backend and frontend without merging technical groups', async t => {
+  const { root, write } = await fixture(t);
+  await write('composer.json', JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
+  await write('.agentorchestra/documentation.json', JSON.stringify({ taxonomy: {
+    modelToModule: { UserProfile: 'User' },
+    domainToModule: { Profile: 'User' },
+    frontendPages: { 'settings/permissions': 'Permission', settings: 'Setting' },
+    frontendComponents: { '011/profile': 'User' },
+  } }));
+  for (const file of [
+    'app/Models/User.php', 'app/Models/UserProfile.php', 'app/Models/Order.php',
+    'app/Http/Controllers/Admin/Orders/IndexController.php',
+    'app/Services/Orders/CreateOrderService.php',
+    'app/Policies/OrderPolicy.php',
+    'app/Http/Controllers/Admin/Profile/UpdateController.php',
+    'resources/js/pages/admin/orders/Index.vue',
+    'resources/js/components/011/profile/Card.vue',
+    'resources/js/pages/admin/settings/permissions/Index.vue',
+    'app/Http/Middleware/VerifyCsrfToken.php',
+    'routes/web.php',
+  ]) await write(file, file.endsWith('.php') ? '<?php class Example {}' : '<template><div /></template>');
+  const report = await scanProject(root);
+  const byPath = new Map(report.files.map(file => [file.path, file.module]));
+  for (const file of ['app/Models/Order.php', 'app/Http/Controllers/Admin/Orders/IndexController.php',
+    'app/Services/Orders/CreateOrderService.php', 'app/Policies/OrderPolicy.php',
+    'resources/js/pages/admin/orders/Index.vue']) assert.equal(byPath.get(file), 'domain:Order');
+  for (const file of ['app/Models/User.php', 'app/Models/UserProfile.php',
+    'app/Http/Controllers/Admin/Profile/UpdateController.php', 'resources/js/components/011/profile/Card.vue']) {
+    assert.equal(byPath.get(file), 'domain:User');
+  }
+  assert.equal(byPath.get('resources/js/pages/admin/settings/permissions/Index.vue'), 'domain:Permission');
+  assert.equal(byPath.get('app/Http/Middleware/VerifyCsrfToken.php'), 'app/Http');
+  assert.equal(byPath.get('routes/web.php'), 'routes');
+  assert.equal(report.modules.find(item => item.id === 'domain:Order').fileCount, 5);
+  assert.equal(report.files.find(file => file.path === 'app/Policies/OrderPolicy.php').layer, 'policy');
+  const handoff = buildHandoff(report);
+  assert.equal(handoff.modules.find(item => item.id === 'domain:Order').counts.files, 5);
+  assert.ok(handoff.modules.find(item => item.id === 'domain:Order').keyFiles.some(file => file.path === 'app/Models/Order.php'));
+});
+
+test('Laravel without a matching domain keeps technical layers and reports the gap', async t => {
+  const { root, write } = await fixture(t);
+  await write('composer.json', JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
+  await write('app/Http/Controllers/HomeController.php', '<?php class HomeController {}');
+  await write('routes/web.php', '<?php return [];');
   const report = await scanProject(root);
   assert.ok(report.modules.every(item => item.kind !== 'domain'));
   assert.ok(report.warnings.some(item => item.message.includes('camadas técnicas')));
