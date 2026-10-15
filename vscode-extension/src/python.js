@@ -43,7 +43,7 @@ function download(url, redirects = 0) {
     if (address.protocol !== 'https:' || !['releases.astral.sh', 'github.com', 'release-assets.githubusercontent.com', 'objects.githubusercontent.com'].includes(address.hostname)) {
       return reject(new Error('Origem inválida para o instalador de Python.'));
     }
-    const request = https.get(address, { headers: { 'User-Agent': 'AgentOrchestra-python-bootstrap' } }, response => {
+    const request = https.get(address, { headers: { 'User-Agent': 'Agent Orchestra-python-bootstrap' } }, response => {
       if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
         response.resume();
         if (redirects >= 5 || !response.headers.location) return reject(new Error('Redirecionamentos demais no download do Python.'));
@@ -124,7 +124,7 @@ async function resolvePython(context, vscode, { probePython = probe, installPyth
   if (configured !== 'python') throw new Error(`Python configurado em agentOrchestra.pythonPath não está disponível: ${configured}`);
   if (!pending) {
     pending = vscode.window.withProgress({ location: vscode.ProgressLocation.Notification,
-      title: 'AgentOrchestra: baixando Python para uso local…' }, () => installPython(context.globalStorageUri.fsPath))
+      title: 'Agent Orchestra: baixando Python para uso local…' }, () => installPython(context.globalStorageUri.fsPath))
       .catch(error => { throw new Error(`Não foi possível instalar Python automaticamente: ${error.message}`); })
       .finally(() => { pending = undefined; });
   }

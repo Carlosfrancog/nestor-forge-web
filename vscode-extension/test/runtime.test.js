@@ -54,7 +54,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
     workspace: {
       isTrusted: true,
       workspaceFolders: [{ name: 'project', uri: { fsPath: root, scheme: 'file' } }],
-      getConfiguration: () => ({ get: key => ({ includeUserInstallations: false, claudePath: process.execPath, codexPath: process.execPath, updateMode: 'off' })[key] }),
+      getConfiguration: () => ({ get: key => ({ includeUserInstallations: false, claudePath: process.execPath, codexPath: process.execPath, nodePath: process.execPath, updateMode: 'off' })[key] }),
       onDidChangeWorkspaceFolders: () => ({ dispose() {} }),
       onDidChangeConfiguration: () => ({ dispose() {} }),
       createFileSystemWatcher: () => ({ onDidCreate() {}, onDidDelete() {}, onDidChange() {}, dispose() {} })
@@ -81,7 +81,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
         return panel;
       },
       showQuickPick: async (items, options) => options.placeHolder === 'Onde acompanhar o agente?' && surfaceMode === 'extension' ? items[1] : items[0],
-      showInputBox: async () => 'Revise o serviço de pedidos',
+      showInputBox: async options => options.prompt === 'Argumentos do script como lista JSON' ? '["--help"]' : 'Revise o serviço de pedidos',
       showErrorMessage: message => { throw new Error(message); },
       showInformationMessage: () => undefined
     }
@@ -134,4 +134,14 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   assert.match(copiedPrompt, /Revise o serviço de pedidos/);
   assert.match(copiedPrompt, /project-handoff\.json/);
   assert.match(panels[0].webview.html, /Instrução copiada para a extensão oficial/);
+  const script = path.join(root, 'script.js');
+  fs.writeFileSync(script, 'console.log("ready")');
+  const scriptElement = { kind: 'file', root: { name: 'project', path: root, scope: 'workspace' },
+    item: { file: script, label: 'script', category: 'scripts' } };
+  assert.equal(treeProvider.getTreeItem(scriptElement).contextValue, 'orchestraScript');
+  assert.equal(treeProvider.getTreeItem({ ...scriptElement, item: { ...scriptElement.item, category: 'skills' } }).contextValue, 'orchestraSkill');
+  await callbacks.get('agentOrchestra.runScriptQuick')(scriptElement);
+  assert.deepEqual(tasks.at(-1).execution.args, [script]);
+  await callbacks.get('agentOrchestra.runScript')(scriptElement);
+  assert.deepEqual(tasks.at(-1).execution.args, [script, '--help']);
 });

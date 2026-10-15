@@ -24,7 +24,7 @@ Este pacote contém três agentes de leitura para Claude Code e Codex:
 - **Histórico Git:** evolução e decisões rastreadas em commits.
 - **Contexto de Stack:** tecnologias, versões e comandos declarados.
 
-No VS Code, execute **AgentOrchestra: Importar pacote de agente**, selecione
+No VS Code, execute **Agent Orchestra: Importar pacote de agente**, selecione
 este ZIP e o projeto de destino. A prévia lista os arquivos dos três agentes
 e sinaliza conflitos antes da instalação. Reinicie a janela se o catálogo não
 for atualizado imediatamente.

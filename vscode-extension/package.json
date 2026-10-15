@@ -1,8 +1,8 @@
 {
   "name": "agentorchestra",
-  "displayName": "AgentOrchestra",
+  "displayName": "Agent Orchestra",
   "description": "Explore agentes e skills, mapeie o projeto e gere contexto para documentação.",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "publisher": "CarlosFranco",
   "icon": "media/agents.png",
   "engines": {
@@ -28,7 +28,7 @@
       "activitybar": [
         {
           "id": "agentOrchestra",
-          "title": "AgentOrchestra",
+          "title": "Agent Orchestra",
           "icon": "media/agents.svg"
         }
       ]
@@ -44,96 +44,106 @@
     "commands": [
       {
         "command": "agentOrchestra.refresh",
-        "title": "AgentOrchestra: Atualizar",
+        "title": "Agent Orchestra: Atualizar",
         "icon": "$(refresh)"
       },
       {
         "command": "agentOrchestra.find",
-        "title": "AgentOrchestra: Buscar agente ou skill",
+        "title": "Agent Orchestra: Buscar agente ou skill",
         "icon": "$(search)"
       },
       {
         "command": "agentOrchestra.create",
-        "title": "AgentOrchestra: Criar agente ou skill",
+        "title": "Agent Orchestra: Criar agente ou skill",
         "icon": "$(add)"
       },
       {
         "command": "agentOrchestra.open",
-        "title": "AgentOrchestra: Abrir para editar"
+        "title": "Agent Orchestra: Abrir para editar"
       },
       {
         "command": "agentOrchestra.preview",
-        "title": "AgentOrchestra: Visualizar em leitura"
+        "title": "Agent Orchestra: Visualizar em leitura"
       },
       {
         "command": "agentOrchestra.reveal",
-        "title": "AgentOrchestra: Mostrar no Explorer"
+        "title": "Agent Orchestra: Mostrar no Explorer"
       },
       {
         "command": "agentOrchestra.copyPath",
-        "title": "AgentOrchestra: Copiar caminho"
+        "title": "Agent Orchestra: Copiar caminho"
       },
       {
         "command": "agentOrchestra.forgeCreate",
-        "title": "AgentOrchestra: Criar com a Forja",
+        "title": "Agent Orchestra: Criar com a Forja",
         "icon": "$(sparkle)"
       },
       {
         "command": "agentOrchestra.forgeBuild",
-        "title": "AgentOrchestra: Gerar a partir da especificação"
+        "title": "Agent Orchestra: Gerar a partir da especificação",
+        "icon": "$(sparkle)"
       },
       {
         "command": "agentOrchestra.dashboard",
-        "title": "AgentOrchestra: Abrir painel do agente"
+        "title": "Agent Orchestra: Abrir painel do agente",
+        "icon": "$(graph)"
       },
       {
         "command": "agentOrchestra.enableMonitoring",
-        "title": "AgentOrchestra: Ativar monitoramento local"
+        "title": "Agent Orchestra: Ativar monitoramento local"
       },
       {
         "command": "agentOrchestra.disableMonitoring",
-        "title": "AgentOrchestra: Desativar monitoramento local"
+        "title": "Agent Orchestra: Desativar monitoramento local"
       },
       {
         "command": "agentOrchestra.instructions",
-        "title": "AgentOrchestra: Ler instruções do script"
+        "title": "Agent Orchestra: Ler instruções do script",
+        "icon": "$(book)"
       },
       {
         "command": "agentOrchestra.runScript",
-        "title": "AgentOrchestra: Executar script manualmente"
+        "title": "Agent Orchestra: Executar script com argumentos",
+        "icon": "$(list-unordered)"
+      },
+      {
+        "command": "agentOrchestra.runScriptQuick",
+        "title": "Agent Orchestra: Executar script sem argumentos",
+        "icon": "$(play)"
       },
       {
         "command": "agentOrchestra.shareAgent",
-        "title": "AgentOrchestra: Compartilhar agente",
+        "title": "Agent Orchestra: Compartilhar agente",
         "icon": "$(share)"
       },
       {
         "command": "agentOrchestra.importPackage",
-        "title": "AgentOrchestra: Importar pacote de agente",
+        "title": "Agent Orchestra: Importar pacote de agente",
         "icon": "$(cloud-download)"
       },
       {
         "command": "agentOrchestra.runAgent",
-        "title": "AgentOrchestra: Executar agente",
+        "title": "Agent Orchestra: Executar agente",
         "icon": "$(play)"
       },
       {
         "command": "agentOrchestra.agentRunInstructions",
-        "title": "AgentOrchestra: Ler roteiros prontos"
+        "title": "Agent Orchestra: Ler roteiros prontos",
+        "icon": "$(book)"
       },
       {
         "command": "agentOrchestra.checkUpdates",
-        "title": "AgentOrchestra: Verificar atualizações",
-        "icon": "$(cloud-download)"
+        "title": "Agent Orchestra: Verificar atualizações",
+        "icon": "$(sync)"
       },
       {
         "command": "agentOrchestra.projectMap",
-        "title": "AgentOrchestra: Mapear projeto",
+        "title": "Agent Orchestra: Mapear projeto",
         "icon": "$(type-hierarchy)"
       },
       {
         "command": "agentOrchestra.generateProjectDocs",
-        "title": "AgentOrchestra: Mapear projeto e gerar documentação",
+        "title": "Agent Orchestra: Mapear projeto e gerar documentação",
         "icon": "$(book)"
       }
     ],
@@ -169,6 +179,10 @@
         },
         {
           "command": "agentOrchestra.runScript",
+          "when": "false"
+        },
+        {
+          "command": "agentOrchestra.runScriptQuick",
           "when": "false"
         },
         {
@@ -226,48 +240,53 @@
       "view/item/context": [
         {
           "command": "agentOrchestra.preview",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraAgent)",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraAgent || viewItem == orchestraSkill)",
           "group": "navigation@1"
         },
         {
           "command": "agentOrchestra.open",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSpec)",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSkill || viewItem == orchestraSpec)",
           "group": "navigation@2"
         },
         {
           "command": "agentOrchestra.reveal",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSpec || viewItem == orchestraScript)",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSkill || viewItem == orchestraSpec || viewItem == orchestraScript)",
           "group": "navigation@3"
         },
         {
           "command": "agentOrchestra.copyPath",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSpec || viewItem == orchestraScript)",
+          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSkill || viewItem == orchestraSpec || viewItem == orchestraScript)",
           "group": "navigation@4"
         },
         {
           "command": "agentOrchestra.dashboard",
           "when": "view == agentOrchestra.files && (viewItem == orchestraAgent || viewItem == orchestraSpec)",
-          "group": "navigation@5"
+          "group": "inline@1"
         },
         {
           "command": "agentOrchestra.forgeBuild",
           "when": "view == agentOrchestra.files && viewItem == orchestraSpec",
-          "group": "navigation@6"
+          "group": "inline@0"
         },
         {
           "command": "agentOrchestra.instructions",
           "when": "view == agentOrchestra.files && viewItem == orchestraScript",
-          "group": "navigation@1"
+          "group": "inline@2"
         },
         {
           "command": "agentOrchestra.runScript",
           "when": "view == agentOrchestra.files && viewItem == orchestraScript",
-          "group": "navigation@2"
+          "group": "inline@1"
+        },
+        {
+          "command": "agentOrchestra.runScriptQuick",
+          "when": "view == agentOrchestra.files && viewItem == orchestraScript",
+          "group": "inline@0"
         },
         {
           "command": "agentOrchestra.shareAgent",
-          "when": "view == agentOrchestra.files && viewItem == orchestraAgent",
-          "group": "inline@1"
+          "when": "view == agentOrchestra.files && (viewItem == orchestraAgent || viewItem == orchestraSkill)",
+          "group": "inline@2"
         },
         {
           "command": "agentOrchestra.runAgent",
@@ -282,12 +301,12 @@
         {
           "command": "agentOrchestra.agentRunInstructions",
           "when": "view == agentOrchestra.files && viewItem == orchestraPreset",
-          "group": "navigation@1"
+          "group": "inline@1"
         }
       ]
     },
     "configuration": {
-      "title": "AgentOrchestra",
+      "title": "Agent Orchestra",
       "properties": {
         "agentOrchestra.includeUserInstallations": {
           "type": "boolean",

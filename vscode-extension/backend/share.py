@@ -296,7 +296,7 @@ def legacy_package(archive: zipfile.ZipFile, infos: list[zipfile.ZipInfo]) -> tu
         raise ValueError("Formato de ZIP não reconhecido: é necessário AGENT.md ou agent.md na pasta principal.")
     primary = entries[0]
     if primary.lower() == "skill.md":
-        raise ValueError("Skills com SKILL.md devem ser exportadas pelo AgentOrchestra antes da importação.")
+        raise ValueError("Skills com SKILL.md devem ser exportadas pelo Agent Orchestra antes da importação.")
     source = archive.read(names[relative_names.index(primary)]).decode("utf-8-sig")
     heading = re.search(r"(?m)^#\s+(.+?)\s*$", source)
     title = heading.group(1).strip() if heading else PurePosixPath(prefix.rstrip("/")).name or "Agente importado"
@@ -351,9 +351,9 @@ def read_package(archive_file: Path) -> tuple[dict, dict[str, bytes]]:
             manifest, payload = legacy_package(archive, infos)
         else:
             if MANIFEST not in names or "install.sh" not in names:
-                raise ValueError("Pacote AgentOrchestra incompleto: faltam manifesto ou install.sh.")
+                raise ValueError("Pacote Agent Orchestra incompleto: faltam manifesto ou install.sh.")
             if any(item.is_dir() for item in infos):
-                raise ValueError("Diretórios não são aceitos no pacote AgentOrchestra.")
+                raise ValueError("Diretórios não são aceitos no pacote Agent Orchestra.")
             manifest, payload = read_native_package(archive, names)
     for relative, data in payload.items():
         if relative.endswith((".md", ".toml")):

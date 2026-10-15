@@ -1,6 +1,6 @@
 # Roteiros prontos para agentes
 
-Selecione um agente Claude ou Codex na árvore do AgentOrchestra e clique em **Executar agente**. Escolha um roteiro, acrescente a tarefa quando necessário e escolha onde abrir a sessão.
+Selecione um agente Claude ou Codex na árvore do Agent Orchestra e clique em **Executar agente**. Escolha um roteiro, acrescente a tarefa quando necessário e escolha onde abrir a sessão.
 
 | Roteiro | Uso |
 | --- | --- |
@@ -11,8 +11,8 @@ Selecione um agente Claude ou Codex na árvore do AgentOrchestra e clique em **E
 | Documentar mudanças | Atualizar instruções e exemplos afetados. |
 | Auditar segurança | Fazer análise passiva com evidências. |
 
-**Terminal integrado:** o AgentOrchestra inicia o CLI interativo no projeto e abre o painel do agente. O terminal mostra mensagens, comandos e pedidos de aprovação; o painel acompanha início e término do processo. Para Claude, a extensão passa `--agent <nome>` ao CLI. Para Codex, inicia uma sessão que solicita a delegação ao subagente personalizado. O Codex decide a execução do subagente dentro da sessão; confira a conversa no terminal.
+**Terminal integrado:** o Agent Orchestra inicia o CLI interativo no projeto e abre o painel do agente. O terminal mostra mensagens, comandos e pedidos de aprovação; o painel acompanha início e término do processo. Para Claude, a extensão passa `--agent <nome>` ao CLI. Para Codex, inicia uma sessão que solicita a delegação ao subagente personalizado. O Codex decide a execução do subagente dentro da sessão; confira a conversa no terminal.
 
-**Extensão oficial:** abre o painel do Claude Code ou do Codex e copia a instrução. Cole e envie na conversa. As extensões oficiais não expõem uma API pública estável para enviar automaticamente esse texto a partir do AgentOrchestra. O painel marca a tarefa como **preparada**, sem afirmar que ela começou.
+**Extensão oficial:** abre o painel do Claude Code ou do Codex e copia a instrução. Cole e envie na conversa. As extensões oficiais não expõem uma API pública estável para enviar automaticamente esse texto a partir do Agent Orchestra. O painel marca a tarefa como **preparada**, sem afirmar que ela começou.
 
-Configure `agentOrchestra.claudePath` ou `agentOrchestra.codexPath` se os executáveis não estiverem no `PATH`. A execução exige um projeto confiável. O AgentOrchestra não ignora permissões dos CLIs e não registra o conteúdo da conversa.
+Configure `agentOrchestra.claudePath` ou `agentOrchestra.codexPath` se os executáveis não estiverem no `PATH`. A execução exige um projeto confiável. O Agent Orchestra não ignora permissões dos CLIs e não registra o conteúdo da conversa.

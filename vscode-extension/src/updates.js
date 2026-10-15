@@ -41,7 +41,7 @@ function readHttps(url, limit, redirects = 0) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:') return reject(new Error('A atualização exige HTTPS.'));
-    const request = https.get(parsed, { headers: { 'User-Agent': 'AgentOrchestra-updater', 'Accept': 'application/json, application/octet-stream' } }, response => {
+    const request = https.get(parsed, { headers: { 'User-Agent': 'Agent Orchestra-updater', 'Accept': 'application/json, application/octet-stream' } }, response => {
       if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
         response.resume();
         if (redirects >= 3 || !response.headers.location) return reject(new Error('Redirecionamentos demais no download.'));
@@ -146,7 +146,7 @@ function start(context, vscode) {
     try {
       const release = await fetchRelease(settings().get('updateManifestUrl'), extensionId);
       if (compareVersions(release.version, current) <= 0) {
-        if (manual) vscode.window.showInformationMessage(`AgentOrchestra ${current} já está atualizado.`);
+        if (manual) vscode.window.showInformationMessage(`Agent Orchestra ${current} já está atualizado.`);
         return;
       }
       const mode = settings().get('updateMode');
@@ -161,26 +161,26 @@ function start(context, vscode) {
         return;
       }
       const choice = await vscode.window.showInformationMessage(
-        `AgentOrchestra ${release.version} disponível (instalada: ${current}).`,
+        `Agent Orchestra ${release.version} disponível (instalada: ${current}).`,
         'Atualizar agora', 'Abrir página'
       );
       if (choice === 'Atualizar agora') await install(release);
       else if (choice === 'Abrir página') await vscode.env.openExternal(vscode.Uri.parse(new URL('../', settings().get('updateManifestUrl')).href));
     } catch (error) {
-      if (manual) vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`);
+      if (manual) vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`);
     } finally { busy = false; }
   }
 
   async function install(release) {
     try {
       const cli = resolveCli(settings().get('vscodeCliPath'));
-      await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Instalando AgentOrchestra ${release.version}…` },
+      await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Instalando Agent Orchestra ${release.version}…` },
         () => installRelease(release, cli));
       await context.globalState.update('updateInstalledVersion', release.version);
-      const choice = await vscode.window.showInformationMessage(`AgentOrchestra ${release.version} instalado. Recarregue o VS Code para ativá-lo.`, 'Recarregar janela');
+      const choice = await vscode.window.showInformationMessage(`Agent Orchestra ${release.version} instalado. Recarregue o VS Code para ativá-lo.`, 'Recarregar janela');
       if (choice === 'Recarregar janela') await vscode.commands.executeCommand('workbench.action.reloadWindow');
     } catch (error) {
-      const choice = await vscode.window.showErrorMessage(`AgentOrchestra: não foi possível instalar a atualização: ${error.message}`, 'Baixar VSIX');
+      const choice = await vscode.window.showErrorMessage(`Agent Orchestra: não foi possível instalar a atualização: ${error.message}`, 'Baixar VSIX');
       if (choice === 'Baixar VSIX') await vscode.env.openExternal(vscode.Uri.parse(release.url));
     }
   }

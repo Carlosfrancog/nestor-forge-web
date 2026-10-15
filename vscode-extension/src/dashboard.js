@@ -76,7 +76,7 @@ function render(item, root, specInfo, noteText, summary, nonce, run) {
     </style></head><body>
     <h1>${escapeHtml(item.label)}</h1><p class="muted">${escapeHtml(root.name)} · ${escapeHtml(item.category)}<br>${escapeHtml(item.file)}</p>
     <div class="bar"><button data-action="openSource">Abrir fonte</button><button data-action="openSpec">Abrir spec</button><button data-action="linkSpec">Vincular spec</button><button data-action="build">Gerar com a Forja</button><button data-action="editNotes">Editar notas</button>${canRun ? '<button data-action="runAgent">Executar agente</button><button data-action="focusTerminal">Abrir terminal</button>' : ''}<button data-action="refresh">Atualizar</button></div>
-    ${canRun ? `<h2>Execução iniciada pelo AgentOrchestra</h2><div class="metric"><strong>Estado</strong>${escapeHtml(runStatusText(run))}</div><p class="muted">${escapeHtml(runDetails)}</p><p class="muted">Mensagens, ferramentas e aprovações aparecem no terminal ou na extensão oficial. Este painel acompanha o processo iniciado no terminal; uma instrução copiada só começa após ser enviada na extensão.</p>` : ''}
+    ${canRun ? `<h2>Execução iniciada pelo Agent Orchestra</h2><div class="metric"><strong>Estado</strong>${escapeHtml(runStatusText(run))}</div><p class="muted">${escapeHtml(runDetails)}</p><p class="muted">Mensagens, ferramentas e aprovações aparecem no terminal ou na extensão oficial. Este painel acompanha o processo iniciado no terminal; uma instrução copiada só começa após ser enviada na extensão.</p>` : ''}
     <h2>Atividade observada</h2><div class="metric"><strong>Estado</strong>${escapeHtml(statusText(summary))}</div><div class="metric"><strong>Inícios no histórico local</strong>${summary.starts}</div><div class="metric"><strong>Último evento</strong>${escapeHtml(last)}</div>
     <p class="muted">O estado depende de hooks locais opcionais. “Uso observado recentemente” significa início sem parada registrada nos últimos 10 minutos; não é prova de que o processo ainda está ativo. O histórico guarda apenas horário, pasta, tipo e identificadores do agente.</p>
     <h2>Grafo de decisões</h2>${flowGraph(specInfo.spec)}
@@ -90,7 +90,7 @@ function openDashboard(vscode, context, element, logFile, onBuild, options = {})
   const key = `spec:${item.file}`;
   let linked = context.workspaceState.get(key);
   let lastState = '';
-  const panel = vscode.window.createWebviewPanel('agentOrchestra.dashboard', `AgentOrchestra: ${item.label}`, vscode.ViewColumn.Beside, { enableScripts: true, localResourceRoots: [] });
+  const panel = vscode.window.createWebviewPanel('agentOrchestra.dashboard', `Agent Orchestra: ${item.label}`, vscode.ViewColumn.Beside, { enableScripts: true, localResourceRoots: [] });
   const update = () => {
     const specInfo = specFor(item, root, linked);
     const noteFile = notesPath(item, root, context.globalStorageUri.fsPath);
@@ -131,7 +131,7 @@ function openDashboard(vscode, context, element, logFile, onBuild, options = {})
       if (message.action === 'runAgent' && options.onRun) await options.onRun();
       if (message.action === 'focusTerminal' && options.onFocusTerminal) await options.onFocusTerminal();
       if (message.action === 'refresh') update();
-    } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+    } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
   });
   const timer = setInterval(update, 10000);
   const subscription = options.onDidChangeRun?.(file => { if (file === item.file) update(); });

@@ -11,6 +11,6 @@ const go = process.argv[5] || 'go';
 try {
   process.stdout.write(renderMarkdown(analyzeRepository(root, base, { python, go })));
 } catch (error) {
-  process.stderr.write(`AgentOrchestra: ${error.message}\n`);
+  process.stderr.write(`Agent Orchestra: ${error.message}\n`);
   process.exitCode = 2;
 }

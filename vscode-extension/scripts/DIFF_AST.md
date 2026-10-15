@@ -1,6 +1,6 @@
 # Analisar diff estrutural
 
-Execução manual no AgentOrchestra: **Scripts de skills → Analisar diff estrutural → Executar**. A extensão compara o `HEAD` com o estado atual, incluindo arquivos novos ainda não versionados, e abre um relatório Markdown.
+Execução manual no Agent Orchestra: **Scripts de skills → Analisar diff estrutural → Executar**. A extensão compara o `HEAD` com o estado atual, incluindo arquivos novos ainda não versionados, e abre um relatório Markdown.
 
 Pelo terminal, dentro da pasta `vscode-extension`:
 

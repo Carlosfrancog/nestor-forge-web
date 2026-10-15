@@ -1,4 +1,4 @@
-"""Ponte JSON entre AgentOrchestra e o compilador Nestor Forge."""
+"""Ponte JSON entre Agent Orchestra e o compilador Nestor Forge."""
 from __future__ import annotations
 
 from pathlib import Path

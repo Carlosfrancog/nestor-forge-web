@@ -70,9 +70,13 @@ class AgentsTreeProvider {
     const item = new vscode.TreeItem(element.item.label, vscode.TreeItemCollapsibleState.None);
     item.resourceUri = vscode.Uri.file(file);
     item.description = element.item.detail || (element.item.builtIn ? 'Ferramenta integrada' : path.relative(element.root.path, path.dirname(file)));
-    item.tooltip = file;
+    item.tooltip = category === 'scripts'
+      ? `${file}\nAções: executar sem argumentos, executar com argumentos, ler instruções.`
+      : ['claudeAgents', 'codexAgents'].includes(category)
+        ? `${file}\nAções: executar agente, abrir painel, compartilhar.` : file;
     item.contextValue = category === 'agentPreset' ? 'orchestraPreset' : category === 'scripts' ? 'orchestraScript' : category === 'specs' ? 'orchestraSpec' :
-      ['claudeAgents', 'codexAgents', 'skills'].includes(category) ? 'orchestraAgent' : isMarkdown ? 'orchestraMarkdown' : 'orchestraConfig';
+      ['claudeAgents', 'codexAgents'].includes(category) ? 'orchestraAgent' : category === 'skills' ? 'orchestraSkill' :
+        isMarkdown ? 'orchestraMarkdown' : 'orchestraConfig';
     item.iconPath = new vscode.ThemeIcon(category === 'agentPreset' ? 'play' : category === 'scripts' ? 'terminal' : category === 'specs' ? 'symbol-object' : isMarkdown ? 'markdown' : 'settings-gear');
     if (category === 'claudeAgents' || category === 'codexAgents') {
       const run = this.runRegistry?.get(file);
@@ -134,7 +138,7 @@ async function createArtifact(provider) {
     const file = createFile(folder.uri.fsPath, kind.value, name);
     provider.refresh();
     await vscode.window.showTextDocument(vscode.Uri.file(file), { preview: false });
-  } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.code === 'EEXIST' ? 'Arquivo existente; nenhum arquivo foi substituído.' : error.message}`); }
+  } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.code === 'EEXIST' ? 'Arquivo existente; nenhum arquivo foi substituído.' : error.message}`); }
 }
 async function buildSpec(context, provider, specFile, rootPath) {
   if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de gerar arquivos.');
@@ -148,7 +152,7 @@ async function buildSpec(context, provider, specFile, rootPath) {
     provider.refresh();
     vscode.window.showInformationMessage(`Forja gerou ${report.files.length} arquivo(s) em ${rootPath}.`);
     if (report.build_report) await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(report.build_report));
-  } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+  } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
 }
 async function createWithForge(context, provider) {
   if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de criar agentes.');
@@ -169,16 +173,16 @@ async function createWithForge(context, provider) {
     await vscode.window.showTextDocument(vscode.Uri.file(specFile), { preview: false });
     const action = await vscode.window.showInformationMessage('Especificação criada. Revise o JSON antes de gerar os arquivos.', 'Gerar agora');
     if (action === 'Gerar agora') await buildSpec(context, provider, specFile, folder.uri.fsPath);
-  } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+  } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
 }
 async function runBuiltinScript(context, provider, root) {
   const base = await vscode.window.showInputBox({ prompt: 'Commit ou branch de referência', value: 'HEAD' });
   if (base === undefined) return;
   let python;
   try { python = await pythonRuntime.resolvePython(context, vscode); }
-  catch (error) { return vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+  catch (error) { return vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
   const args = [path.join(context.extensionPath, 'scripts', 'diff-ast.js'), root, base || 'HEAD', python, setting('goPath')];
-  await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'AgentOrchestra: analisando diff estrutural…' }, () => new Promise(resolve => {
+  await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Agent Orchestra: analisando diff estrutural…' }, () => new Promise(resolve => {
     execFile(setting('nodePath'), args, { cwd: root, windowsHide: true, timeout: 180000, maxBuffer: 8 * 1024 * 1024 }, async (error, stdout, stderr) => {
       try {
         if (error) throw new Error(stderr.trim() || error.message);
@@ -187,22 +191,26 @@ async function runBuiltinScript(context, provider, root) {
         fs.writeFileSync(report, stdout, 'utf8');
         await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(report));
         provider.refresh();
-      } catch (failure) { vscode.window.showErrorMessage(`AgentOrchestra: ${failure.message}`); }
+      } catch (failure) { vscode.window.showErrorMessage(`Agent Orchestra: ${failure.message}`); }
       resolve();
     });
   }));
 }
-async function runScript(context, provider, element) {
+async function runScript(context, provider, element, withArguments = true) {
   if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de executar scripts.');
   if (element?.item?.category !== 'scripts') return;
   const folder = element.root.scope === 'workspace' ? localFolders().find(value => value.uri.fsPath === element.root.path) : await selectFolder('Projeto em que o script será executado');
   if (!folder) return;
   if (element.item.builtIn) return runBuiltinScript(context, provider, folder.uri.fsPath);
-  const rawArgs = await vscode.window.showInputBox({ prompt: 'Argumentos do script como lista JSON', value: '[]', validateInput: value => {
-    try { const args = JSON.parse(value); return Array.isArray(args) && args.every(arg => typeof arg === 'string') ? undefined : 'Use uma lista JSON de strings.'; }
-    catch (_) { return 'Use uma lista JSON de strings.'; }
-  } });
-  if (rawArgs === undefined) return;
+  let scriptArgs = [];
+  if (withArguments) {
+    const rawArgs = await vscode.window.showInputBox({ prompt: 'Argumentos do script como lista JSON', value: '[]', validateInput: value => {
+      try { const args = JSON.parse(value); return Array.isArray(args) && args.every(arg => typeof arg === 'string') ? undefined : 'Use uma lista JSON de strings.'; }
+      catch (_) { return 'Use uma lista JSON de strings.'; }
+    } });
+    if (rawArgs === undefined) return;
+    scriptArgs = JSON.parse(rawArgs);
+  }
   const ext = path.extname(element.item.file).toLowerCase();
   let command;
   try {
@@ -210,10 +218,10 @@ async function runScript(context, provider, element) {
       '.js': setting('nodePath'), '.cjs': setting('nodePath'), '.mjs': setting('nodePath'),
       '.go': setting('goPath'), '.sh': setting('shellPath'), '.ps1': setting('powershellPath')
     })[ext];
-  } catch (error) { return vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
-  const args = ext === '.go' ? ['run', element.item.file, ...JSON.parse(rawArgs)] : [element.item.file, ...JSON.parse(rawArgs)];
+  } catch (error) { return vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
+  const args = ext === '.go' ? ['run', element.item.file, ...scriptArgs] : [element.item.file, ...scriptArgs];
   const task = new vscode.Task({ type: 'agentOrchestra', task: element.item.label }, folder,
-    `AgentOrchestra: ${element.item.label}`, 'AgentOrchestra', new vscode.ProcessExecution(command, args, { cwd: folder.uri.fsPath }));
+    `Agent Orchestra: ${element.item.label}`, 'Agent Orchestra', new vscode.ProcessExecution(command, args, { cwd: folder.uri.fsPath }));
   task.presentationOptions = { reveal: vscode.TaskRevealKind.Always, panel: vscode.TaskPanelKind.Dedicated };
   await vscode.tasks.executeTask(task);
 }
@@ -266,7 +274,7 @@ function createRunRegistry(context) {
 
 async function checkCli(command) {
   await new Promise((resolve, reject) => execFile(command, ['--version'], { windowsHide: true, timeout: 12000 }, error => {
-    if (error) reject(new Error(`Executável não encontrado ou indisponível: ${command}. Ajuste o caminho nas configurações do AgentOrchestra.`));
+    if (error) reject(new Error(`Executável não encontrado ou indisponível: ${command}. Ajuste o caminho nas configurações do Agent Orchestra.`));
     else resolve();
   }));
 }
@@ -329,7 +337,7 @@ async function runAgent(context, provider, registry, showPanel, element, showPan
     const executable = setting(platform === 'claude' ? 'claudePath' : 'codexPath');
     await checkCli(executable);
     const task = new vscode.Task({ type: 'agentOrchestra.agent', agent: name, preset: preset.id }, folder,
-      `AgentOrchestra: ${name} · ${preset.label}`, 'AgentOrchestra',
+      `Agent Orchestra: ${name} · ${preset.label}`, 'Agent Orchestra',
       new vscode.ProcessExecution(executable, agentRuns.cliArgs(platform, name, prompt, folder.uri.fsPath), { cwd: folder.uri.fsPath }));
     task.presentationOptions = { reveal: vscode.TaskRevealKind.Always, panel: vscode.TaskPanelKind.Dedicated };
     const runId = registry.set(element.item.file, { status: 'starting', platform, preset: preset.label, project: folder.name, startedAt });
@@ -342,7 +350,7 @@ async function runAgent(context, provider, registry, showPanel, element, showPan
     registry.attach(element.item.file, execution, runId);
   } catch (error) {
     if (pendingTask) registry.fail(pendingFile, pendingTask, pendingRunId);
-    vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`);
+    vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`);
   }
 }
 
@@ -358,7 +366,7 @@ async function shareAgent(context, provider, element) {
     if (action.value === 'zip') {
       const selected = await vscode.window.showSaveDialog({
         defaultUri: vscode.Uri.file(path.join(element.root.path, `${element.item.label}.agentorchestra.zip`)),
-        filters: { 'Pacote AgentOrchestra': ['zip'] }, saveLabel: 'Exportar pacote'
+        filters: { 'Pacote Agent Orchestra': ['zip'] }, saveLabel: 'Exportar pacote'
       });
       if (!selected) return;
       const result = await sharing.exportAgent(await pythonRuntime.resolvePython(context, vscode), context.extensionPath, element.root.path, element.item.file, selected.fsPath);
@@ -383,21 +391,21 @@ async function shareAgent(context, provider, element) {
       provider.refresh();
       vscode.window.showInformationMessage(`${element.item.label} instalado em ${target.name} (${result.files.length} arquivo(s)).`);
     } finally { fs.rmSync(archive, { force: true }); }
-  } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+  } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
 }
 
 async function importAgentPackage(context, provider) {
   if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de importar agentes.');
   const folder = await selectFolder('Projeto que receberá o agente');
   if (!folder) return;
-  const selected = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'Pacote AgentOrchestra': ['zip'] }, openLabel: 'Importar pacote' });
+  const selected = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'Pacote Agent Orchestra': ['zip'] }, openLabel: 'Importar pacote' });
   if (!selected?.[0]) return;
   try {
     const archive = selected[0].fsPath;
     const python = await pythonRuntime.resolvePython(context, vscode);
     const review = await sharing.inspectPackage(python, context.extensionPath, archive, folder.uri.fsPath);
     if (review.conflicts.length) throw new Error(`Arquivos existentes no destino: ${review.conflicts.slice(0, 8).join(', ')}`);
-    const source = review.format === 'legacy' ? 'ZIP de agente convertido' : 'Pacote AgentOrchestra';
+    const source = review.format === 'legacy' ? 'ZIP de agente convertido' : 'Pacote Agent Orchestra';
     const approved = await vscode.window.showInformationMessage(
       `Instalar ${source} em ${folder.name}?`,
       { modal: true, detail: `${review.files.length} arquivo(s). Entrada: ${review.entrypoint}\n\n${review.files.slice(0, 12).join('\n')}${review.files.length > 12 ? '\n…' : ''}` },
@@ -407,7 +415,7 @@ async function importAgentPackage(context, provider) {
     const result = await sharing.importPackage(python, context.extensionPath, archive, folder.uri.fsPath);
     provider.refresh();
     vscode.window.showInformationMessage(`Agente importado em ${folder.name} (${result.files.length} arquivo(s)).`);
-  } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+  } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
 }
 
 async function monitor(context, provider, enable) {
@@ -418,7 +426,7 @@ async function monitor(context, provider, enable) {
     { label: 'Claude e Codex', value: ['claude', 'codex'] },
     { label: 'Claude', value: ['claude'] },
     { label: 'Codex', value: ['codex'] }
-  ] : [{ label: 'Remover hooks AgentOrchestra', value: ['claude', 'codex'] }];
+  ] : [{ label: 'Remover hooks Agent Orchestra', value: ['claude', 'codex'] }];
   const choice = await vscode.window.showQuickPick(options, { placeHolder: enable ? 'Qual plataforma observar?' : 'Desativar neste projeto' });
   if (!choice) return;
   try {
@@ -431,8 +439,8 @@ async function monitor(context, provider, enable) {
     provider.refresh();
     vscode.window.showInformationMessage(enable
       ? 'Hooks locais configurados. O Codex pode pedir confiança nos hooks antes de ativá-los.'
-      : 'Hooks do AgentOrchestra removidos deste projeto.');
-  } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+      : 'Hooks do Agent Orchestra removidos deste projeto.');
+  } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
 }
 
 function gitOutput(root, args) {
@@ -560,6 +568,7 @@ function activate(context) {
     'agentOrchestra.disableMonitoring': () => monitor(context, provider, false),
     'agentOrchestra.instructions': showInstructions,
     'agentOrchestra.runScript': element => runScript(context, provider, element),
+    'agentOrchestra.runScriptQuick': element => runScript(context, provider, element, false),
     'agentOrchestra.shareAgent': element => shareAgent(context, provider, element),
     'agentOrchestra.importPackage': () => importAgentPackage(context, provider),
     'agentOrchestra.projectMap': showProjectMap,
@@ -567,7 +576,7 @@ function activate(context) {
       if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de gerar documentação.');
       const folder = await selectFolder('Projeto para documentar');
       if (folder) try { await generateProjectDocs(projectState(folder)); }
-      catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+      catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
     },
     'agentOrchestra.open': openFile,
     'agentOrchestra.preview': previewFile,
