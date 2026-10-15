@@ -12,6 +12,7 @@ const activity = require('./activity');
 const agentRuns = require('./agentRuns');
 const updates = require('./updates');
 const sharing = require('./share');
+const pythonRuntime = require('./python');
 const { openDashboard } = require('./dashboard');
 
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
@@ -140,7 +141,7 @@ async function buildSpec(context, provider, specFile, rootPath) {
   ], { placeHolder: 'Destino da Forja' });
   if (!target) return;
   try {
-    const report = await forge.build(setting('pythonPath'), context.extensionPath, rootPath, specFile, target.value);
+    const report = await forge.build(await pythonRuntime.resolvePython(context, vscode), context.extensionPath, rootPath, specFile, target.value);
     provider.refresh();
     vscode.window.showInformationMessage(`Forja gerou ${report.files.length} arquivo(s) em ${rootPath}.`);
     if (report.build_report) await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(report.build_report));
@@ -159,7 +160,7 @@ async function createWithForge(context, provider) {
   const mission = await vscode.window.showInputBox({ prompt: 'Missão do agente', placeHolder: 'Analisar diffs e apontar riscos concretos', validateInput: value => value.trim() ? undefined : 'Informe a missão.' });
   if (mission === undefined) return;
   try {
-    const spec = await forge.makeSpec(setting('pythonPath'), context.extensionPath, folder.uri.fsPath, { name, role, mission, profile });
+    const spec = await forge.makeSpec(await pythonRuntime.resolvePython(context, vscode), context.extensionPath, folder.uri.fsPath, { name, role, mission, profile });
     const specFile = forge.saveSpec(folder.uri.fsPath, spec);
     provider.refresh();
     await vscode.window.showTextDocument(vscode.Uri.file(specFile), { preview: false });
@@ -170,7 +171,10 @@ async function createWithForge(context, provider) {
 async function runBuiltinScript(context, provider, root) {
   const base = await vscode.window.showInputBox({ prompt: 'Commit ou branch de referência', value: 'HEAD' });
   if (base === undefined) return;
-  const args = [path.join(context.extensionPath, 'scripts', 'diff-ast.js'), root, base || 'HEAD', setting('pythonPath'), setting('goPath')];
+  let python;
+  try { python = await pythonRuntime.resolvePython(context, vscode); }
+  catch (error) { return vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+  const args = [path.join(context.extensionPath, 'scripts', 'diff-ast.js'), root, base || 'HEAD', python, setting('goPath')];
   await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'AgentOrchestra: analisando diff estrutural…' }, () => new Promise(resolve => {
     execFile(setting('nodePath'), args, { cwd: root, windowsHide: true, timeout: 180000, maxBuffer: 8 * 1024 * 1024 }, async (error, stdout, stderr) => {
       try {
@@ -197,8 +201,13 @@ async function runScript(context, provider, element) {
   } });
   if (rawArgs === undefined) return;
   const ext = path.extname(element.item.file).toLowerCase();
-  const command = ({ '.py': setting('pythonPath'), '.js': setting('nodePath'), '.cjs': setting('nodePath'), '.mjs': setting('nodePath'),
-    '.go': setting('goPath'), '.sh': setting('shellPath'), '.ps1': setting('powershellPath') })[ext];
+  let command;
+  try {
+    command = ext === '.py' ? await pythonRuntime.resolvePython(context, vscode) : ({
+      '.js': setting('nodePath'), '.cjs': setting('nodePath'), '.mjs': setting('nodePath'),
+      '.go': setting('goPath'), '.sh': setting('shellPath'), '.ps1': setting('powershellPath')
+    })[ext];
+  } catch (error) { return vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
   const args = ext === '.go' ? ['run', element.item.file, ...JSON.parse(rawArgs)] : [element.item.file, ...JSON.parse(rawArgs)];
   const task = new vscode.Task({ type: 'agentOrchestra', task: element.item.label }, folder,
     `AgentOrchestra: ${element.item.label}`, 'AgentOrchestra', new vscode.ProcessExecution(command, args, { cwd: folder.uri.fsPath }));
@@ -345,7 +354,7 @@ async function shareAgent(context, provider, element) {
         filters: { 'Pacote AgentOrchestra': ['zip'] }, saveLabel: 'Exportar pacote'
       });
       if (!selected) return;
-      const result = await sharing.exportAgent(setting('pythonPath'), context.extensionPath, element.root.path, element.item.file, selected.fsPath);
+      const result = await sharing.exportAgent(await pythonRuntime.resolvePython(context, vscode), context.extensionPath, element.root.path, element.item.file, selected.fsPath);
       vscode.window.showInformationMessage(`Pacote criado com ${result.files.length} arquivo(s): ${selected.fsPath}`);
       return;
     }
@@ -359,10 +368,11 @@ async function shareAgent(context, provider, element) {
     fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
     const archive = path.join(context.globalStorageUri.fsPath, `transfer-${crypto.randomUUID()}.zip`);
     try {
-      await sharing.exportAgent(setting('pythonPath'), context.extensionPath, element.root.path, element.item.file, archive);
-      const review = await sharing.inspectPackage(setting('pythonPath'), context.extensionPath, archive, target.uri.fsPath);
+      const python = await pythonRuntime.resolvePython(context, vscode);
+      await sharing.exportAgent(python, context.extensionPath, element.root.path, element.item.file, archive);
+      const review = await sharing.inspectPackage(python, context.extensionPath, archive, target.uri.fsPath);
       if (review.conflicts.length) throw new Error(`Arquivos existentes em ${target.name}: ${review.conflicts.slice(0, 8).join(', ')}`);
-      const result = await sharing.importPackage(setting('pythonPath'), context.extensionPath, archive, target.uri.fsPath);
+      const result = await sharing.importPackage(python, context.extensionPath, archive, target.uri.fsPath);
       provider.refresh();
       vscode.window.showInformationMessage(`${element.item.label} instalado em ${target.name} (${result.files.length} arquivo(s)).`);
     } finally { fs.rmSync(archive, { force: true }); }
@@ -377,7 +387,8 @@ async function importAgentPackage(context, provider) {
   if (!selected?.[0]) return;
   try {
     const archive = selected[0].fsPath;
-    const review = await sharing.inspectPackage(setting('pythonPath'), context.extensionPath, archive, folder.uri.fsPath);
+    const python = await pythonRuntime.resolvePython(context, vscode);
+    const review = await sharing.inspectPackage(python, context.extensionPath, archive, folder.uri.fsPath);
     if (review.conflicts.length) throw new Error(`Arquivos existentes no destino: ${review.conflicts.slice(0, 8).join(', ')}`);
     const source = review.format === 'legacy' ? 'ZIP de agente convertido' : 'Pacote AgentOrchestra';
     const approved = await vscode.window.showInformationMessage(
@@ -386,7 +397,7 @@ async function importAgentPackage(context, provider) {
       'Instalar'
     );
     if (approved !== 'Instalar') return;
-    const result = await sharing.importPackage(setting('pythonPath'), context.extensionPath, archive, folder.uri.fsPath);
+    const result = await sharing.importPackage(python, context.extensionPath, archive, folder.uri.fsPath);
     provider.refresh();
     vscode.window.showInformationMessage(`Agente importado em ${folder.name} (${result.files.length} arquivo(s)).`);
   } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }

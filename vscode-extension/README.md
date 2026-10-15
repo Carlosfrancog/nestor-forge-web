@@ -15,7 +15,7 @@ Clique em um Markdown para abrir sua prévia em modo de leitura. No menu de cont
 
 Use o botão com ícone de brilho na barra da árvore ou o comando **AgentOrchestra: Criar com a Forja**. Escolha projeto, perfil, nome, papel e missão. A extensão grava uma especificação JSON no projeto para revisão. A ação **Gerar a partir da especificação** cria os artefatos Codex + Claude ou somente Claude. Arquivos existentes não são substituídos pela Forja.
 
-É necessário Python 3.10 ou mais recente para essa função. Ajuste `agentOrchestra.pythonPath` se o executável não for `python`.
+É necessário Python 3.10 ou mais recente. Se `python` não estiver disponível, a extensão baixa Python 3.13 automaticamente para seu armazenamento local na primeira operação que precisar dele. É necessária conexão com a internet nessa primeira vez. Para usar uma instalação própria, ajuste `agentOrchestra.pythonPath`.
 
 ## Atividade, grafo e notas
 
@@ -35,7 +35,7 @@ Também é possível importar ZIPs antigos que contenham `AGENT.md` ou `agent.md
 
 O ZIP **Agentes de contexto** disponível na página de instalação usa o formato nativo do AgentOrchestra e instala três agentes no mesmo projeto. Selecione esse ZIP no comando de importação; não é necessário extraí-lo antes.
 
-Arquivos existentes no destino bloqueiam a importação, sem sobrescrita. Referências relativas para arquivos fora dessas pastas e referências absolutas ao projeto de origem exigem ajuste antes da exportação. A operação depende do Python configurado em `agentOrchestra.pythonPath`.
+Arquivos existentes no destino bloqueiam a importação, sem sobrescrita. Referências relativas para arquivos fora dessas pastas e referências absolutas ao projeto de origem exigem ajuste antes da exportação. Sem Python instalado, a extensão baixa uma cópia local antes de analisar ou importar o ZIP.
 
 ## Executar agentes com roteiros prontos
 
@@ -59,10 +59,10 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.4.1.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.4.2.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.4.1.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.4.1.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.4.2.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.4.2.vsix` na raiz do repositório.
 
 ## Atualizações pelo site
 

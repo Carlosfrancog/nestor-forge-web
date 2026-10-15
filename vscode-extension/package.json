@@ -2,7 +2,7 @@
   "name": "agentorchestra",
   "displayName": "AgentOrchestra",
   "description": "Explore agentes e skills, crie com a Forja e analise mudanças do projeto.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "nestor-forge",
   "icon": "media/agents.png",
   "engines": {
@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/updates.js && node --check src/share.js && node --check src/structural.js && node --check src/diffAst.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
+    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/updates.js && node --check src/share.js && node --check src/python.js && node --check src/structural.js && node --check src/diffAst.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
     "vscode:prepublish": "python ../scripts/bundle_extension_backend.py"
   },
   "contributes": {
@@ -277,7 +277,7 @@
         "agentOrchestra.pythonPath": {
           "type": "string",
           "default": "python",
-          "description": "Executável Python para a Forja e análise AST de Python."
+          "description": "Executável Python 3.10+ para a Forja, importação de ZIP e análise AST. Se o padrão 'python' não existir, a extensão baixa Python 3.13 para o armazenamento local."
         },
         "agentOrchestra.nodePath": {
           "type": "string",
