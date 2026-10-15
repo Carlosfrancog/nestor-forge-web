@@ -2,11 +2,14 @@
 
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { execFile } = require('node:child_process');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { buildHandoff, writeProjectDocs } = require('../src/projectDocs');
+const { promisify } = require('node:util');
+const { buildHandoff, hasTrackedGeneratedOutput, writeProjectDocs } = require('../src/projectDocs');
+const execFileAsync = promisify(execFile);
 
 async function project(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentorchestra-docs-test-'));
@@ -28,6 +31,28 @@ function report(root, override = {}) {
     stats: { total: 2 }, ...override,
   };
 }
+
+test('detects Git-tracked generated files before automatic publication', async t => {
+  const root = await project(t);
+  const handoff = path.join(root, '.agentorchestra', 'context', 'project-handoff.json');
+  await fs.mkdir(path.dirname(handoff), { recursive: true });
+  await fs.writeFile(handoff, '{}\n');
+  await execFileAsync('git', ['init', '-q'], { cwd: root });
+  assert.equal(await hasTrackedGeneratedOutput(root), false);
+  await execFileAsync('git', ['add', '--', '.agentorchestra/context/project-handoff.json'], { cwd: root });
+  assert.equal(await hasTrackedGeneratedOutput(root), true);
+
+  const docsOnly = await project(t);
+  await execFileAsync('git', ['init', '-q'], { cwd: docsOnly });
+  const output = path.join(docsOnly, 'docs', 'architecture');
+  await fs.mkdir(output, { recursive: true });
+  await fs.writeFile(path.join(output, '.agentorchestra-docs-manifest.json'),
+    JSON.stringify({ schemaVersion: 1, files: ['index.md'] }));
+  await fs.writeFile(path.join(output, 'index.md'), '# Mapa\n');
+  assert.equal(await hasTrackedGeneratedOutput(docsOnly), false);
+  await execFileAsync('git', ['add', '--', 'docs/architecture/index.md'], { cwd: docsOnly });
+  assert.equal(await hasTrackedGeneratedOutput(docsOnly), true);
+});
 
 test('handoff is compact, stable and carries path/line evidence without source text', async t => {
   const root = await project(t);

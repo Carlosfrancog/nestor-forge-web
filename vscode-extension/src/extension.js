@@ -16,7 +16,7 @@ const pythonRuntime = require('./python');
 const { openDashboard } = require('./dashboard');
 const { scanInWorker } = require('./projectMapRunner');
 const { openProjectMap } = require('./projectMapView');
-const { writeProjectDocs } = require('./projectDocs');
+const { hasTrackedGeneratedOutput, writeProjectDocs } = require('./projectDocs');
 const { documentationPrompt } = require('./projectDocumentationAgent');
 
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
@@ -637,7 +637,10 @@ function activate(context) {
         const previous = state.lastRevision;
         try {
           const report = await scanState(state);
-          if (state.docsEnabled) await writeProjectDocs(state.root, report);
+          // Generated files record HEAD and recent commits. Rewriting tracked
+          // output after every commit would always leave another change to commit.
+          const trackedOutput = state.docsEnabled && await hasTrackedGeneratedOutput(state.root);
+          if (state.docsEnabled && !trackedOutput) await writeProjectDocs(state.root, report);
         } catch (error) {
           state.lastRevision = previous;
           state.view?.error(error);

@@ -1,11 +1,43 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { execFile } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { promisify } = require('node:util');
 
 const MANIFEST = '.agentorchestra-docs-manifest.json';
 const HANDOFF = '.agentorchestra/context/project-handoff.json';
+const execFileAsync = promisify(execFile);
+
+async function hasTrackedGeneratedOutput(root) {
+  const projectRoot = path.resolve(root);
+  let config;
+  try { config = await readConfig(projectRoot); }
+  catch { return true; }
+  const destination = path.resolve(projectRoot, config.outputDir || 'docs/architecture');
+  if (!inside(projectRoot, destination)) return true;
+  const outputDir = path.relative(projectRoot, destination).split(path.sep).join('/');
+  const paths = [HANDOFF, `${outputDir}/${MANIFEST}`];
+  try {
+    const manifest = JSON.parse(await fs.readFile(path.join(destination, MANIFEST), 'utf8'));
+    if (manifest?.schemaVersion !== 1) return true;
+    for (const name of list(manifest.files)) {
+      if (typeof name !== 'string' || !/^[a-z0-9/_.-]+$/i.test(name) || name.includes('..')) return true;
+      paths.push(`${outputDir}/${name}`);
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') return true;
+  }
+  try {
+    const { stdout } = await execFileAsync('git', ['ls-files', '--', ...paths], {
+      cwd: projectRoot, windowsHide: true, timeout: 5000, maxBuffer: 256 * 1024
+    });
+    return Boolean(stdout.trim());
+  } catch {
+    return false;
+  }
+}
 
 function list(value) { return Array.isArray(value) ? value : []; }
 function str(value) { return typeof value === 'string' ? value : ''; }
@@ -317,4 +349,4 @@ async function writeProjectDocs(root, report, options = {}) {
   }
 }
 
-module.exports = { buildHandoff, writeProjectDocs };
+module.exports = { buildHandoff, hasTrackedGeneratedOutput, writeProjectDocs };
