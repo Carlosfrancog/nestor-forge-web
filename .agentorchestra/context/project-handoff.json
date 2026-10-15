@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "project": "nestor-forge-v0.3",
-  "revision": "2a0a18be1ecbf34f9ff9fa360043fd3c9dc733c0",
-  "mapHash": "b3810faae7e5e0adc61cbf77100f3cbf5e51fe793e3b0cd2acbdedcec411e5dc",
-  "generatedAt": "2026-10-15T22:47:05.273Z",
+  "revision": "d75dd6903fd8ae1d08873f074d316861e5bd03f4",
+  "mapHash": "5463ad50055a68ba91452c738cc2ff51a0d844c9faebfeb69e5b76675c25a562",
+  "generatedAt": "2026-10-15T23:27:07.812Z",
   "counts": {
     "folders": 19,
     "files": 85,
@@ -631,6 +631,34 @@
   "git": {
     "changes": [
       {
+        "hash": "d75dd69",
+        "subject": "docs: add verified architecture guides",
+        "paths": [
+          "docs/architecture/guides/agent-generation.md",
+          "docs/architecture/guides/agent-orchestration.md",
+          "docs/architecture/guides/delivery-and-verification.md",
+          "docs/architecture/guides/extension-integrations.md",
+          "docs/architecture/guides/project-documentation.md",
+          "docs/architecture/guides/README.md",
+          "docs/architecture/guides/site-and-distribution.md",
+          "README.md"
+        ]
+      },
+      {
+        "hash": "28a5868",
+        "subject": "docs: publish scoped project map and agent handoff",
+        "paths": [
+          ".agentorchestra/context/project-handoff.json",
+          ".agentorchestra/documentation.json",
+          "docs/architecture/.agentorchestra-docs-manifest.json",
+          "docs/architecture/changes.md",
+          "docs/architecture/index.md",
+          "docs/architecture/modules/docs-5310eeb1.md",
+          "docs/architecture/modules/examples-841babb9.md",
+          "docs/architecture/modules/github-bc8ba131.md"
+        ]
+      },
+      {
         "hash": "2a0a18b",
         "subject": "chore: scope project documentation to repository sources",
         "paths": [
@@ -700,33 +728,6 @@
           "vscode-extension/README.md",
           "vscode-extension/src/projectMapView.js",
           "vscode-extension/test/treeActions.test.js"
-        ]
-      },
-      {
-        "hash": "a184013",
-        "subject": "fix: centralize map cache and parse project files",
-        "paths": [
-          ".gitignore",
-          "vscode-extension/package-lock.json",
-          "vscode-extension/package.json",
-          "vscode-extension/src/extension.js",
-          "vscode-extension/src/helpers/python_ast.py",
-          "vscode-extension/src/projectMap.js",
-          "vscode-extension/src/projectMapRunner.js",
-          "vscode-extension/src/structural.js"
-        ]
-      },
-      {
-        "hash": "0547b42",
-        "subject": "fix: usar novo ID após remoção no Marketplace",
-        "paths": [
-          "scripts/build_site.py",
-          "tests/test_forge.py",
-          "vscode-extension/package-lock.json",
-          "vscode-extension/package.json",
-          "vscode-extension/README.md",
-          "vscode-extension/test/treeActions.test.js",
-          "vscode-extension/test/updates.test.js"
         ]
       }
     ]

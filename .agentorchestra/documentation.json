@@ -3,6 +3,7 @@
     ".agents",
     ".claude",
     ".codex",
+    ".vscode",
     ".chrome-design",
     ".uv-cache",
     "build-agent",

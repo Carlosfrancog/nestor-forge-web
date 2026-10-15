@@ -28,4 +28,5 @@ nestor-claws-modular-package-review/
 *.zip
 /vscode-extension/vendor/
 /vscode-extension/node_modules/
+.vscode/settings.json
 .agentorchestra/cache/
