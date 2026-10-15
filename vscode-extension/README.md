@@ -21,9 +21,11 @@ Use o botão com ícone de brilho na barra da árvore ou o comando **Agent Orche
 
 ### Mapa e contexto do projeto
 
-Use **Agent Orchestra: Mapear projeto** para abrir a estrutura navegável de pastas e arquivos. A tela permite buscar, filtrar por módulo, ampliar o mapa, ver relações verificadas e abrir arquivos. O mapeador percorre as pastas em blocos, lê Python, Go, JavaScript, TypeScript, Vue, PHP, CSS, SQL, Markdown, HTML, XML, JSON e YAML e reaproveita resultados pelo hash dos arquivos. O cache fica em um único JSON no armazenamento da extensão, fora do projeto. Arquivos sem parser continuam no inventário, com a lacuna indicada. O processamento roda em uma thread separada da interface.
+Use **Agent Orchestra: Mapear projeto** para abrir a estrutura navegável de pastas e arquivos. A tela permite buscar, filtrar por grupo, ampliar o mapa, ver relações verificadas e abrir arquivos. O mapeador percorre as pastas em blocos, lê Python, Go, JavaScript, TypeScript, Vue, PHP, CSS, SQL, Markdown, HTML, XML, JSON e YAML e reaproveita resultados pelo hash dos arquivos. Na extensão, o cache fica em um JSON por projeto no armazenamento da extensão; chamadas diretas ao mapeador sem diretório de cache não criam arquivos temporários. Esse cache guarda resumos de parser e não é enviado ao agente. Arquivos sem parser continuam no inventário, com a lacuna indicada. O processamento roda em uma thread separada da interface.
 
-Use **Agent Orchestra: Mapear projeto e gerar documentação** para criar `docs/architecture/index.md`, notas por módulo, um resumo das mudanças Git recentes e `.agentorchestra/context/project-handoff.json`. O handoff contém referências, relações, lacunas e hashes, sem copiar código-fonte. As notas manuais são preservadas; só arquivos registrados no manifesto da geração anterior podem ser substituídos. Com o projeto aberto e confiável, a extensão verifica a revisão Git e atualiza o contexto gerado após um `git pull` que altere o commit atual. Ao abrir o projeto novamente, ela também compara a revisão salva.
+Use **Agent Orchestra: Mapear projeto e documentar com agente** para criar `docs/architecture/index.md`, notas automáticas por grupo, um resumo das mudanças Git recentes e `.agentorchestra/context/project-handoff.json`. Depois escolha Codex, Claude ou copie a instrução para outro agente. O agente usa o handoff como índice, confirma os fluxos no código e escreve guias em `docs/architecture/guides/`. O handoff contém referências, relações, lacunas e hashes, sem copiar código-fonte. As notas manuais e os guias do agente são preservados; só arquivos registrados no manifesto da geração anterior podem ser substituídos. Com o projeto aberto e confiável, a extensão verifica a revisão Git e atualiza o contexto automático após um `git pull`; a redação pelo agente só inicia por comando do desenvolvedor.
+
+Em Laravel, pastas como `app/Http`, `app/Models` e `routes` são marcadas como **camadas técnicas**. Pastas explícitas como `app/Modules/Billing` e `Modules/Billing` são marcadas como **módulos de domínio**. Em projetos organizados apenas por camadas, o agente deve relacionar controladores, serviços, modelos e rotas antes de propor módulos de negócio; o mapeador não presume que cada pasta seja um módulo. Use `modules` em `.agentorchestra/documentation.json` para fixar agrupamentos próprios do projeto.
 
 Quando você executa um agente pelo Agent Orchestra, a instrução aponta para esse handoff, se ele existir. O agente consulta os módulos e abre apenas os arquivos relevantes para a tarefa.
 
@@ -83,10 +85,10 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.5.6.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.5.7.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.6.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.6.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.7.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.7.vsix` na raiz do repositório.
 
 ## Atualizações pelo site
 

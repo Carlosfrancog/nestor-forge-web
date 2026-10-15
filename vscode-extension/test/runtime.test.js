@@ -49,6 +49,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
     ViewColumn: { Beside: 2 },
     TaskRevealKind: { Always: 1 },
     TaskPanelKind: { Dedicated: 2 },
+    ProgressLocation: { Notification: 1 },
     Task: class { constructor(definition, folder, name, source, execution) { Object.assign(this, { definition, folder, name, source, execution }); } },
     ProcessExecution: class { constructor(process, args, options) { Object.assign(this, { process, args, options }); } },
     workspace: {
@@ -71,6 +72,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
       executeTask: async task => { const execution = { task }; tasks.push(task); taskExecutions.push(execution); return execution; }
     },
     window: {
+      withProgress: async (_options, callback) => callback({ report() {} }, { onCancellationRequested() {} }),
       createTreeView: (_id, options) => { treeProvider = options.treeDataProvider; return { dispose() {} }; },
       createWebviewPanel: () => {
         const disposers = [];
@@ -144,4 +146,8 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   assert.deepEqual(tasks.at(-1).execution.args, [script]);
   await callbacks.get('agentOrchestra.runScript')(scriptElement);
   assert.deepEqual(tasks.at(-1).execution.args, [script, '--help']);
+  await callbacks.get('agentOrchestra.generateProjectDocs')();
+  assert.equal(tasks.at(-1).definition.type, 'agentOrchestra.documentation');
+  assert.match(tasks.at(-1).execution.args.at(-1), /guides\/README\.md/);
+  assert.ok(fs.existsSync(path.join(root, 'docs', 'architecture', 'index.md')));
 });

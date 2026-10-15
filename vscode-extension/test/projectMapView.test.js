@@ -30,9 +30,13 @@ test('webview escapes its title, uses nonce CSP and contains valid client script
 });
 
 test('normalizes parser symbol arrays and warning messages for the view', () => {
-  const mapped = normalizeReport({ ...report('project', [{ id: 'src/a.js', path: 'src/a.js', folder: 'src', symbols: [{ key: 'a' }, { key: 'b' }] }]), warnings: [{ kind: 'parse', message: 'Falha no parser' }] });
+  const mapped = normalizeReport({ ...report('project', [{ id: 'src/a.js', path: 'src/a.js', folder: 'src', symbols: [{ key: 'a' }, { key: 'b' }] }]),
+    framework: 'Laravel', modules: [{ id: 'app/Http', label: 'Http', kind: 'layer', path: 'app/Http' }],
+    stats: { cacheEntries: 1, cacheBytes: 4096 }, warnings: [{ kind: 'parse', message: 'Falha no parser' }] });
   assert.equal(mapped.files[0].symbols, 2);
   assert.deepEqual(mapped.warnings, ['Falha no parser']);
+  assert.equal(mapped.modules[0].kind, 'layer');
+  assert.equal(mapped.stats.cacheBytes, 4096);
 });
 
 test('file navigation blocks absolute paths, traversal, and links outside the project', t => {

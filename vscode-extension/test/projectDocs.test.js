@@ -59,17 +59,35 @@ test('consumes scanner module labels, file symbols and source/target edges', asy
   assert.equal(handoff.counts.folders, 4);
 });
 
+test('handoff preserves Laravel domain versus technical layer classification', async t => {
+  const root = await project(t);
+  const data = report(root, {
+    framework: 'Laravel',
+    files: [{ id: 'app/Modules/Billing/Invoice.php', path: 'app/Modules/Billing/Invoice.php', module: 'app/Modules/Billing' }],
+    modules: [{ id: 'app/Modules/Billing', label: 'Billing', kind: 'domain', path: 'app/Modules/Billing', fileCount: 1 }],
+    edges: [],
+  });
+  const handoff = buildHandoff(data);
+  assert.equal(handoff.framework, 'Laravel');
+  assert.equal(handoff.modules[0].kind, 'domain');
+});
+
 test('publishing preserves manual notes and replaces only manifest-owned notes', async t => {
   const root = await project(t);
   const first = await writeProjectDocs(root, report(root));
   const modulePath = first.generatedPaths.find(filename => filename.includes(`${path.sep}modules${path.sep}`));
   const manualPath = path.join(first.outputDir, 'manual.md');
+  const guidePath = path.join(first.outputDir, 'guides', 'README.md');
+  await fs.mkdir(path.dirname(guidePath), { recursive: true });
+  await fs.writeFile(guidePath, '# Guia validado pelo agente\n');
   await fs.writeFile(manualPath, '# Anotações do time\n');
   await fs.writeFile(modulePath, 'old generated content');
   const second = await writeProjectDocs(root, report(root, { revision: 'next' }));
   assert.equal(await fs.readFile(manualPath, 'utf8'), '# Anotações do time\n');
+  assert.equal(await fs.readFile(guidePath, 'utf8'), '# Guia validado pelo agente\n');
   assert.ok(!(await fs.readFile(modulePath, 'utf8')).includes('old generated content'));
   assert.ok((await fs.readFile(second.indexPath, 'utf8')).includes('next'));
+  assert.match(await fs.readFile(second.indexPath, 'utf8'), /guides\/README\.md/);
   const handoff = JSON.parse(await fs.readFile(second.handoffPath, 'utf8'));
   assert.equal(handoff.revision, 'next');
   assert.equal(handoff.mapHash.length, 64);

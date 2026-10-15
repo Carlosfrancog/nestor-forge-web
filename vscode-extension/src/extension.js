@@ -17,6 +17,7 @@ const { openDashboard } = require('./dashboard');
 const { scanInWorker } = require('./projectMapRunner');
 const { openProjectMap } = require('./projectMapView');
 const { writeProjectDocs } = require('./projectDocs');
+const { documentationPrompt } = require('./projectDocumentationAgent');
 
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
 const localFolders = () => (vscode.workspace.workspaceFolders || []).filter(folder => folder.uri.scheme === 'file');
@@ -534,8 +535,29 @@ function activate(context) {
     const report = await scanState(state);
     const result = await writeProjectDocs(state.root, report);
     state.docsEnabled = true;
-    vscode.window.showInformationMessage(`Contexto e documentação atualizados em ${state.name}.`, 'Abrir índice')
-      .then(choice => choice === 'Abrir índice' && vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(result.indexPath)));
+    const relative = value => path.relative(state.root, value).split(path.sep).join('/');
+    const prompt = documentationPrompt({ handoff: relative(result.handoffPath), docs: relative(result.outputDir), framework: report.framework });
+    const choice = await vscode.window.showQuickPick([
+      { label: 'Codex no terminal', detail: 'O agente lê o mapa e escreve guias verificados', value: 'codex' },
+      { label: 'Claude no terminal', detail: 'O agente lê o mapa e escreve guias verificados', value: 'claude' },
+      { label: 'Copiar instrução', detail: 'Use o agente na extensão oficial ou em outro ambiente', value: 'copy' }
+    ], { placeHolder: 'Contexto pronto. Qual agente deve redigir a documentação?' });
+    if (!choice) { vscode.window.showInformationMessage('Contexto preparado. A documentação por agente não foi iniciada.'); return report; }
+    if (choice.value === 'copy') {
+      await vscode.env.clipboard.writeText(prompt);
+      vscode.window.showInformationMessage('Instrução de documentação copiada. Envie-a ao agente no projeto aberto.');
+      return report;
+    }
+    const folder = localFolders().find(item => item.uri.fsPath === state.root);
+    if (!folder) throw new Error('Projeto local não está aberto para executar o agente de documentação.');
+    const executable = setting(choice.value === 'claude' ? 'claudePath' : 'codexPath');
+    await checkCli(executable);
+    const args = choice.value === 'codex' ? agentRuns.cliArgs('codex', '', prompt, state.root) : [prompt];
+    const task = new vscode.Task({ type: 'agentOrchestra.documentation' }, folder,
+      `Agent Orchestra: documentar ${state.name}`, 'Agent Orchestra',
+      new vscode.ProcessExecution(executable, args, { cwd: state.root }));
+    task.presentationOptions = { reveal: vscode.TaskRevealKind.Always, panel: vscode.TaskPanelKind.Dedicated };
+    await vscode.tasks.executeTask(task);
     return report;
   };
   const showProjectMap = async () => {

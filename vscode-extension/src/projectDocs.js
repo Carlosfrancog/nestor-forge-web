@@ -84,7 +84,7 @@ function moduleWarnings(module, warnings, root) {
     if (typeof warning !== 'object') return false;
     const location = relativePath(warning.path, root);
     return warning.moduleId === module.id || (module.path && location.startsWith(`${module.path}/`));
-  }).map(warningText)]).slice(0, 12);
+  }).map(warningText)]).slice(0, 6);
 }
 
 function evidence(value, root, fallback) {
@@ -116,26 +116,27 @@ function buildHandoff(report) {
   const modules = map.modules.map(module => {
     const files = moduleFiles(module, map.files);
     const keys = [...files].sort((a, b) => Number(Boolean(b.isEntry || b.entrypoint)) - Number(Boolean(a.isEntry || a.entrypoint))
-      || (degree.get(b.id) || 0) - (degree.get(a.id) || 0) || a.path.localeCompare(b.path)).slice(0, 12);
+      || (degree.get(b.id) || 0) - (degree.get(a.id) || 0) || a.path.localeCompare(b.path)).slice(0, 8);
     const ids = new Set([module.id, ...files.flatMap(file => [file.id, file.path])]);
-    const relations = map.edges.filter(edge => ids.has(edge.from) || ids.has(edge.to)).slice(0, 24)
+    const relations = map.edges.filter(edge => ids.has(edge.from) || ids.has(edge.to)).slice(0, 12)
       .map(edge => ({ from: edge.from, to: edge.to, type: edge.type,
         ...(edge.path ? { evidence: { path: edge.path, ...(edge.line ? { line: edge.line } : {}) } } : {}) }));
     const anchors = [...list(module.evidence), ...keys.map(file => file.evidence || { path: file.path, line: file.line || file.symbols?.[0]?.line })]
-      .map(value => evidence(value, root)).filter(Boolean).slice(0, 16);
+      .map(value => evidence(value, root)).filter(Boolean).slice(0, 8);
     return { id: module.id, name: module.name, ...(module.path ? { path: module.path } : {}),
+      ...(module.kind ? { kind: module.kind } : {}),
       counts: { files: files.length, relations: map.edges.filter(edge => ids.has(edge.from) || ids.has(edge.to)).length },
       keyFiles: keys.map(file => ({ path: file.path, ...(positiveLine(file.line || file.symbols?.[0]?.line) ? { line: positiveLine(file.line || file.symbols?.[0]?.line) } : {}) })),
       relations, gaps: moduleWarnings(module, map.warnings, root), evidence: anchors };
   });
   const git = compactGit(report, root);
   const signature = { revision: map.revision, files: map.files.map(file => [file.id, file.path, file.fingerprint || file.hash || '']),
-    modules: map.modules.map(module => [module.id, module.path]), edges: map.edges, git };
-  return { schemaVersion: 1, project: path.basename(root), revision: map.revision,
+    modules: map.modules.map(module => [module.id, module.path, module.kind]), edges: map.edges, git };
+  return { schemaVersion: 1, project: path.basename(root), ...(report.framework ? { framework: report.framework } : {}), revision: map.revision,
     mapHash: digest(signature), generatedAt: map.generatedAt, counts: {
       folders: Number.isSafeInteger(map.stats.folders) ? map.stats.folders : map.folders.length,
       files: map.files.length, modules: modules.length, relations: map.edges.length,
-    }, modules, gaps: unique(map.warnings.map(warningText)).slice(0, 20), ...(git ? { git } : {}) };
+    }, modules, gaps: unique(map.warnings.map(warningText)).slice(0, 12), ...(git ? { git } : {}) };
 }
 
 function link(target, label, obsidian) {
@@ -166,9 +167,10 @@ function generatedMarkdown(root, report, handoff, config) {
     '## Módulos', ''];
   for (const module of handoff.modules) {
     const filename = moduleFilename(module);
-    index.push(`- ${link(filename, module.name, obsidian)} — ${module.counts.files} arquivos, ${module.counts.relations} relações`);
+    const groupLabel = ({ domain: 'módulo de domínio', configured: 'módulo configurado', package: 'pacote', layer: 'camada técnica', directory: 'diretório', support: 'suporte' })[module.kind] || 'grupo';
+    index.push(`- ${link(filename, module.name, obsidian)} — ${groupLabel}; ${module.counts.files} arquivos, ${module.counts.relations} relações`);
     const files = moduleFiles(map.modules.find(item => item.id === module.id), map.files);
-    const lines = [`# ${md(module.name)}`, '', `ID: ${fileRef(module.id)}`, '',
+    const lines = [`# ${md(module.name)}`, '', `ID: ${fileRef(module.id)} · Tipo: ${md(groupLabel)}`, '',
       `Arquivos: ${files.length} · Relações: ${module.counts.relations}`, '', '## Arquivos', ''];
     for (const file of files) lines.push(`- ${fileRef(file.path)}${positiveLine(file.line) ? `:${positiveLine(file.line)}` : ''}`);
     if (!files.length) lines.push('Nenhum arquivo atribuído.');
@@ -181,6 +183,8 @@ function generatedMarkdown(root, report, handoff, config) {
   }
   if (!handoff.modules.length) index.push('Nenhum módulo identificado.');
   if (handoff.gaps.length) index.push('', '## Lacunas gerais', '', ...handoff.gaps.map(gap => `- ${md(gap)}`));
+  index.push('', '## Guias verificados pelo agente', '',
+    `${link('guides/README.md', 'Abrir guias', obsidian)} — criado pelo agente de documentação após verificar o código.`);
   const git = gitLines(report, root);
   if (git.length) {
     result.set('changes.md', `${git.join('\n')}\n`);
