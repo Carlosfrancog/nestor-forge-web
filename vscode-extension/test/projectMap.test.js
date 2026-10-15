@@ -32,6 +32,8 @@ test('maps folders, stable IDs, symbols and only verifiable relative imports', a
   assert.equal(first.files.find(file => file.id === 'src/orders/README.md').status, 'parsed');
   assert.ok(first.files.find(file => file.id === 'src/orders/README.md').symbols.some(symbol => symbol.key === 'heading:1:Orders'));
   assert.deepEqual(await fs.readdir(cacheDir), ['project-map-cache.json']);
+  assert.equal(first.stats.cacheEntries, 3);
+  assert.ok(first.stats.cacheBytes > 0);
   await assert.rejects(fs.access(path.join(root, '.agentorchestra', 'cache')));
   assert.ok(first.files.find(file => file.id === 'src/orders/index.js').symbols.some(symbol => symbol.key === 'function:checkout'));
   assert.deepEqual(first.edges, [{ source: 'src/orders/index.js', target: 'src/orders/math.js', kind: 'imports', count: 1 }]);
@@ -74,7 +76,7 @@ test('configuration assigns module and excludes a custom directory', async t => 
   await write('src/payments/api.ts', 'export function invoice() {}');
   await write('generated/api.ts', 'export function generated() {}');
   const result = await scanProject(root, { cacheDir: path.join(root, '.agentorchestra', 'cache') });
-  assert.deepEqual(result.modules, [{ id: 'billing', label: 'Faturamento', fileCount: 1 }]);
+  assert.deepEqual(result.modules, [{ id: 'billing', label: 'Faturamento', kind: 'configured', path: 'src/payments', fileCount: 1 }]);
   assert.deepEqual(result.files.map(file => file.id), ['src/payments/api.ts']);
 });
 
@@ -85,6 +87,18 @@ test('does not map generated documentation back into its own context', async t =
   await write('docs/architecture/index.md', '# Generated map');
   const result = await scanProject(root);
   assert.deepEqual(result.files.map(file => file.path), ['src/main.js']);
+});
+
+test('scans without persistent cache unless the caller supplies a cache directory', async t => {
+  const { root, write } = await fixture(t);
+  await write('src/main.js', 'export function start() {}');
+  const first = await scanProject(root);
+  const second = await scanProject(root);
+  assert.equal(first.stats.parsed, 1);
+  assert.equal(second.stats.parsed, 1);
+  assert.equal(second.stats.cacheHits, 0);
+  assert.equal(second.stats.cacheEntries, 0);
+  await assert.rejects(fs.access(path.join(root, '.agentorchestra', 'cache')));
 });
 
 test('links local Markdown and HTML references but skips remote URLs', async t => {
@@ -116,4 +130,33 @@ test('migrates only recognized legacy cache entries out of the project', async t
   await fs.writeFile(path.join(legacy, 'manual.txt'), 'keep');
   await scanProject(root, { cacheDir: `${root}-external-cache` });
   assert.equal(await fs.readFile(path.join(legacy, 'manual.txt'), 'utf8'), 'keep');
+});
+
+test('Laravel distinguishes domain folders from framework layers', async t => {
+  const { root, write } = await fixture(t);
+  await write('composer.json', JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
+  await write('artisan', '#!/usr/bin/env php');
+  await write('app/Modules/Billing/Services/InvoiceService.php', '<?php class InvoiceService {}');
+  await write('app/Modules/Billing/Http/InvoiceController.php', '<?php class InvoiceController {}');
+  await write('app/Http/Controllers/HomeController.php', '<?php\nuse App\\Modules\\Billing\\Services\\InvoiceService;\nclass HomeController {}');
+  await write('app/Models/User.php', '<?php class User {}');
+  await write('routes/web.php', '<?php return [];');
+  const report = await scanProject(root);
+  assert.equal(report.framework, 'Laravel');
+  const domain = report.modules.find(item => item.id === 'app/Modules/Billing');
+  assert.deepEqual({ kind: domain.kind, fileCount: domain.fileCount }, { kind: 'domain', fileCount: 2 });
+  assert.equal(report.modules.find(item => item.id === 'app/Http').kind, 'layer');
+  assert.equal(report.modules.find(item => item.id === 'app/Models').kind, 'layer');
+  assert.equal(report.modules.find(item => item.id === 'routes').kind, 'layer');
+  assert.ok(report.edges.some(edge => edge.source === 'app/Http/Controllers/HomeController.php' && edge.target === 'app/Modules/Billing/Services/InvoiceService.php'));
+});
+
+test('Laravel without explicit domain folders reports technical groups honestly', async t => {
+  const { root, write } = await fixture(t);
+  await write('composer.json', JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
+  await write('app/Http/Controllers/OrderController.php', '<?php class OrderController {}');
+  await write('app/Models/Order.php', '<?php class Order {}');
+  const report = await scanProject(root);
+  assert.ok(report.modules.every(item => item.kind !== 'domain'));
+  assert.ok(report.warnings.some(item => item.message.includes('camadas técnicas')));
 });

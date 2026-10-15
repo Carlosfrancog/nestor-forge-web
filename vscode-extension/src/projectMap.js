@@ -2,14 +2,13 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
-const os = require('node:os');
 const path = require('node:path');
 const { promisify } = require('node:util');
 const { execFile } = require('node:child_process');
 const { parseSource } = require('./structural');
 
 const execFileAsync = promisify(execFile);
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const DEFAULT_MAX_BYTES = 1024 * 1024;
 const IGNORED_DIRS = new Set([
   '.git', '.hg', '.svn', 'node_modules', 'vendor', 'dist', 'build', 'out',
@@ -63,15 +62,31 @@ function languageFor(file) {
     '.md': 'Markdown', '.markdown': 'Markdown', '.mdx': 'Markdown', '.json': 'JSON',
     '.yaml': 'YAML', '.yml': 'YAML', '.html': 'HTML', '.htm': 'HTML', '.xml': 'XML' })[extension] || null;
 }
-function moduleAndLayer(file, config) {
+function moduleAndLayer(file, config, framework) {
   const parts = file.split('/');
   const folders = parts.slice(0, -1);
   for (const entry of config.modules || []) {
     if (!entry || typeof entry.id !== 'string' || !Array.isArray(entry.paths)) continue;
-    if (entry.paths.some(prefix => {
+    const matched = entry.paths.map(safeRelative).find(prefix => {
       const clean = safeRelative(prefix);
       return clean && (file === clean || file.startsWith(`${clean}/`));
-    })) return { module: entry.id, label: entry.label || entry.id, layer: inferLayer(folders) };
+    });
+    if (matched) return { module: entry.id, label: entry.label || entry.id, layer: inferLayer(folders), kind: 'configured', path: matched };
+  }
+  if (framework === 'Laravel') {
+    const [root, second, third] = folders;
+    const domainRoot = root?.toLowerCase() === 'modules' && second ? `${root}/${second}`
+      : root?.toLowerCase() === 'app' && /^(domain|domains|modules|features)$/i.test(second || '') && third
+        ? `${root}/${second}/${third}` : null;
+    if (domainRoot) return { module: domainRoot, label: domainRoot.split('/').at(-1), layer: inferLayer(folders), kind: 'domain', path: domainRoot };
+    if (root?.toLowerCase() === 'packages' && second && third) {
+      const packageRoot = `${root}/${second}/${third}`;
+      return { module: packageRoot, label: `${second}/${third}`, layer: inferLayer(folders), kind: 'package', path: packageRoot };
+    }
+    const technicalRoot = root?.toLowerCase() === 'app' && second ? `${root}/${second}`
+      : /^(routes|database|resources|config|bootstrap|tests|public)$/i.test(root || '') ? root : null;
+    if (technicalRoot) return { module: technicalRoot, label: technicalRoot.split('/').at(-1), layer: inferLayer(folders), kind: 'layer', path: technicalRoot };
+    return { module: 'project-root', label: 'Raiz do projeto', layer: inferLayer(folders), kind: 'support', path: '.' };
   }
   let offset = SOURCE_ROOTS.has(folders[0]?.toLowerCase()) ? 1 : 0;
   if (['packages', 'apps'].includes(folders[0]?.toLowerCase())) offset = 1;
@@ -80,7 +95,18 @@ function moduleAndLayer(file, config) {
     module: candidate || 'unclassified',
     label: candidate || 'Não classificado',
     layer: inferLayer(folders),
+    kind: candidate ? 'directory' : 'support',
+    path: candidate ? folders.slice(0, offset + 1).join('/') : '.',
   };
+}
+async function detectFramework(root, config) {
+  if (typeof config.framework === 'string' && config.framework.toLowerCase() === 'laravel') return 'Laravel';
+  try {
+    const composer = JSON.parse(await fs.readFile(path.join(root, 'composer.json'), 'utf8'));
+    const requires = { ...composer.require, ...composer['require-dev'] };
+    if (requires['laravel/framework'] || requires['laravel/laravel']) return 'Laravel';
+  } catch { /* Não é um projeto Composer ou não há dependência Laravel. */ }
+  return null;
 }
 function inferLayer(folders) {
   for (const [layer, matcher] of LAYERS) if (folders.some(folder => matcher.test(folder))) return layer;
@@ -99,9 +125,21 @@ function relativeImports(source, language) {
     : [/(?:^|[;\n])\s*(?:import|export)\s+(?:[^'"\n]*?\s+from\s+)?['"](\.{1,2}\/[^'"]+)['"]/gm,
       /\b(?:require|import)\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g];
   for (const pattern of patterns) for (const match of source.matchAll(pattern)) matches.push(match[1]);
+  if (language === 'PHP') {
+    for (const match of source.matchAll(/^\s*use\s+((?:App|Modules)\\[A-Za-z0-9_\\]+)(?:\s+as\s+\w+)?\s*;/gm)) {
+      matches.push(`php:${match[1]}`);
+    }
+  }
   return matches;
 }
 function resolveImport(from, specifier, known) {
+  if (specifier.startsWith('php:')) {
+    const name = specifier.slice(4);
+    const prefix = name.startsWith('App\\') ? 'app/' : name.startsWith('Modules\\') ? 'Modules/' : null;
+    if (!prefix) return null;
+    const target = prefix + name.split('\\').slice(1).join('/') + '.php';
+    return known.has(target) ? target : null;
+  }
   if (/^(?:[a-z][\w+.-]*:|#|\/)/i.test(specifier)) return null;
   const local = specifier.split(/[?#]/)[0];
   if (!local) return null;
@@ -169,6 +207,7 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
   aborted(signal);
   const warnings = [];
   const config = await readConfig(absoluteRoot, warnings);
+  const framework = await detectFramework(absoluteRoot, config);
   const limit = Number.isSafeInteger(config.maxFileBytes) && config.maxFileBytes > 0
     ? Math.min(config.maxFileBytes, 16 * 1024 * 1024) : DEFAULT_MAX_BYTES;
   const excludes = (Array.isArray(config.exclude) ? config.exclude : [])
@@ -180,13 +219,12 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
       excludes.push(generatedDocs);
     } catch { /* Ainda não há documentação gerada nesta pasta. */ }
   }
-  const cacheRoot = cacheDir ? path.resolve(cacheDir)
-    : path.join(os.tmpdir(), 'agentorchestra-project-map', sha256(Buffer.from(absoluteRoot)).slice(0, 24));
-  const cacheRelative = safeRelative(unix(path.relative(absoluteRoot, cacheRoot)));
+  const cacheRoot = cacheDir ? path.resolve(cacheDir) : null;
+  const cacheRelative = cacheRoot ? safeRelative(unix(path.relative(absoluteRoot, cacheRoot))) : null;
   if (cacheRelative && cacheRelative !== '.') excludes.push(cacheRelative);
-  const cacheFile = path.join(cacheRoot, 'project-map-cache.json');
+  const cacheFile = cacheRoot ? path.join(cacheRoot, 'project-map-cache.json') : null;
   let previousCache = {};
-  try {
+  if (cacheFile) try {
     const saved = JSON.parse(await fs.readFile(cacheFile, 'utf8'));
     if (saved.version === CACHE_VERSION && saved.entries && typeof saved.entries === 'object') previousCache = saved.entries;
   } catch { /* primeira leitura ou cache corrompido */ }
@@ -194,11 +232,11 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
   const files = [];
   const folders = [{ id: '.', path: '.', parent: null }];
   const pending = [{ absolute: absoluteRoot, relative: '.' }];
-  const stats = { folders: 0, files: 0, parsed: 0, cacheHits: 0, withoutParser: 0,
+  const stats = { folders: 0, files: 0, parsed: 0, cacheHits: 0, cacheEntries: 0, cacheBytes: 0, withoutParser: 0,
     tooLarge: 0, binary: 0, parseErrors: 0, ignored: 0 };
   const contentImports = new Map();
   const modules = new Map();
-  await fs.mkdir(cacheRoot, { recursive: true });
+  if (cacheRoot) await fs.mkdir(cacheRoot, { recursive: true });
 
   while (pending.length) {
     aborted(signal);
@@ -226,14 +264,14 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
         const stat = await fs.stat(path.join(folder.absolute, entry.name));
         bytes = stat.size;
       } catch (error) { warnings.push({ kind: 'read', path: relative, message: error.message }); continue; }
-      const assignment = moduleAndLayer(relative, config);
+      const assignment = moduleAndLayer(relative, config, framework);
       const language = languageFor(relative);
       const file = { id: relative, path: relative, folder: folder.relative,
         module: assignment.module, layer: assignment.layer, language: language || 'unknown',
         bytes, hash: null, symbols: [], status: 'without-parser' };
       files.push(file);
       stats.files++;
-      if (!modules.has(assignment.module)) modules.set(assignment.module, { id: assignment.module, label: assignment.label, fileCount: 0 });
+      if (!modules.has(assignment.module)) modules.set(assignment.module, { id: assignment.module, label: assignment.label, kind: assignment.kind, path: assignment.path, fileCount: 0 });
       modules.get(assignment.module).fileCount++;
       if (bytes > limit) { file.status = 'too-large'; stats.tooLarge++; continue; }
       let content;
@@ -260,7 +298,7 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
           continue;
         }
       }
-      nextCache[cacheKey] = summary;
+      if (cacheRoot) nextCache[cacheKey] = summary;
       file.symbols = summary.symbols;
       file.status = 'parsed';
       contentImports.set(relative, summary.imports);
@@ -285,15 +323,23 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
   }).sort((a, b) => compare(a.source, b.source) || compare(a.target, b.target));
   const unclassified = modules.get('unclassified')?.fileCount || 0;
   if (unclassified) warnings.push({ kind: 'classification', path: '.', message: `${unclassified} arquivo(s) sem módulo; configure .agentorchestra/documentation.json para classificar.` });
-  const temporary = `${cacheFile}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
-  try {
-    await fs.writeFile(temporary, JSON.stringify({ version: CACHE_VERSION, entries: nextCache }));
-    await fs.rename(temporary, cacheFile);
-  } catch { await fs.rm(temporary, { force: true }); }
-  if (!cacheRoot.startsWith(path.join(absoluteRoot, '.agentorchestra') + path.sep)) await pruneLegacyCache(absoluteRoot);
+  if (framework === 'Laravel' && ![...modules.values()].some(module => ['domain', 'configured', 'package'].includes(module.kind))) {
+    warnings.push({ kind: 'classification', path: '.', message: 'Laravel detectado: os grupos atuais são camadas técnicas; a identificação de módulos de negócio precisa de análise do agente ou configuração explícita.' });
+  }
+  if (cacheFile) {
+    const temporary = `${cacheFile}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+    try {
+      const payload = JSON.stringify({ version: CACHE_VERSION, entries: nextCache });
+      await fs.writeFile(temporary, payload);
+      await fs.rename(temporary, cacheFile);
+      stats.cacheEntries = Object.keys(nextCache).length;
+      stats.cacheBytes = Buffer.byteLength(payload);
+    } catch { await fs.rm(temporary, { force: true }); }
+    if (!cacheRoot.startsWith(path.join(absoluteRoot, '.agentorchestra') + path.sep)) await pruneLegacyCache(absoluteRoot);
+  }
   stats.edges = edges.length;
   stats.modules = modules.size;
-  return { schemaVersion: 1, root: absoluteRoot, revision: await gitRevision(absoluteRoot),
+  return { schemaVersion: 1, root: absoluteRoot, framework, revision: await gitRevision(absoluteRoot),
     generatedAt: new Date().toISOString(), folders, files,
     modules: [...modules.values()].sort((a, b) => compare(a.id, b.id)), edges, warnings, stats };
 }
