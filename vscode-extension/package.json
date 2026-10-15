@@ -2,7 +2,7 @@
   "name": "nestor-forge-agent-orchestra",
   "displayName": "Agent Orchestra (Nestor Forge)",
   "description": "Explore agentes e skills, mapeie o projeto e gere contexto para documentação.",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "publisher": "CarlosEFranco",
   "icon": "media/agents.png",
   "engines": {
@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/updates.js && node --check src/share.js && node --check src/python.js && node --check src/structural.js && node --check src/diffAst.js && node --check src/projectMap.js && node --check src/projectMapView.js && node --check src/projectMapRunner.js && node --check src/projectMapWorker.js && node --check src/projectDocs.js && node --check src/projectDocumentationAgent.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
+    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/updates.js && node --check src/share.js && node --check src/python.js && node --check src/structural.js && node --check src/diffAst.js && node --check src/moduleTaxonomy.js && node --check src/projectMap.js && node --check src/projectMapView.js && node --check src/projectMapRunner.js && node --check src/projectMapWorker.js && node --check src/projectDocs.js && node --check src/projectDocumentationAgent.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
     "vscode:prepublish": "python ../scripts/bundle_extension_backend.py"
   },
   "contributes": {
