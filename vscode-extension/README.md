@@ -83,10 +83,10 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.5.4.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.5.5.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.4.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.4.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.5.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.5.vsix` na raiz do repositório.
 
 ## Atualizações pelo site
 
@@ -94,4 +94,4 @@ O build do GitHub Pages publica `updates/agentorchestra.json` junto do VSIX. O m
 
 O VS Code não atualiza automaticamente extensões instaladas por VSIX; esse fluxo é próprio do Agent Orchestra e só funciona a partir da versão 0.4.1. O endpoint padrão é `https://carlosfrancog.github.io/nestor-forge-web/updates/agentorchestra.json` e pode ser alterado em `agentOrchestra.updateManifestUrl` se o site mudar de endereço. O manifesto só é publicado quando o VSIX da mesma versão foi gerado.
 
-O identificador para publicar na conta CarlosEFranco é `CarlosEFranco.agentorchestra`. Se você instalou `nestor-forge.agentorchestra`, `CarlosFranco.agentorchestra` ou a extensão anterior **Nestor Agents**, remova-a após instalar esta versão para não manter dois ícones. A troca de publisher cria uma identidade diferente no VS Code, então a instalação antiga não recebe esta versão como atualização automática.
+O identificador para publicar na conta CarlosEFranco é `CarlosEFranco.nestor-forge-agent-orchestra`. O nome interno `agentorchestra` foi usado em uma publicação removida e permanece reservado pelo Marketplace. Se você instalou `CarlosEFranco.agentorchestra`, `nestor-forge.agentorchestra`, `CarlosFranco.agentorchestra` ou a extensão anterior **Nestor Agents**, remova-a após instalar esta versão para não manter dois ícones. A troca de identificador cria uma extensão diferente no VS Code, então a instalação antiga não recebe esta versão como atualização automática.

@@ -37,7 +37,8 @@ def build_site(output: Path = OUTPUT) -> Path:
     if vsix.is_file():
         with zipfile.ZipFile(vsix) as package:
             packaged = json.loads(package.read("extension/package.json"))
-        if packaged.get("version") != version or packaged.get("name") != manifest["name"]:
+        if (packaged.get("version") != version or packaged.get("name") != manifest["name"]
+                or packaged.get("publisher") != manifest["publisher"]):
             raise ValueError(f"O pacote VSIX não corresponde ao manifesto da extensão: {vsix}")
         download = downloads / vsix_name
         download.parent.mkdir(parents=True, exist_ok=True)

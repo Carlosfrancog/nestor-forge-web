@@ -22,7 +22,7 @@ test('tree exposes script and agent actions without relying on the context menu'
 
 test('visible name is spaced and update/import actions use distinct icons', () => {
   const commands = Object.fromEntries(manifest.contributes.commands.map(item => [item.command, item]));
-  assert.equal(manifest.displayName, 'Agent Orchestra');
+  assert.equal(manifest.displayName, 'Agent Orchestra (Nestor Forge)');
   assert.equal(manifest.contributes.viewsContainers.activitybar[0].title, 'Agent Orchestra');
   assert.notEqual(commands['agentOrchestra.checkUpdates'].icon, commands['agentOrchestra.importPackage'].icon);
 });

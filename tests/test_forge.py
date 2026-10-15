@@ -187,7 +187,7 @@ class ForgeOutputTests(unittest.TestCase):
                 import hashlib
                 release = json.loads(update_manifest.read_text(encoding="utf-8"))
                 self.assertEqual(release["version"], version)
-                self.assertEqual(release["extensionId"], "nestor-forge.agentorchestra")
+                self.assertEqual(release["extensionId"], "CarlosEFranco.nestor-forge-agent-orchestra")
                 self.assertEqual(release["url"], f"../downloads/agentorchestra-{version}.vsix")
                 self.assertEqual(release["sha256"], hashlib.sha256(package.read_bytes()).hexdigest())
                 self.assertEqual(release["size"], package.stat().st_size)
