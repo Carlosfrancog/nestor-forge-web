@@ -1,5 +1,7 @@
 # Nestor Forge v0.3
 
+Guias de arquitetura verificados no código: [docs/architecture/guides/README.md](docs/architecture/guides/README.md).
+
 **Agent Orchestra**, extensão experimental para visualizar e organizar agentes e skills no VS Code: [vscode-extension/README.md](vscode-extension/README.md).
 
 Plano de integrações com Claude Cowork, plugins e CLI: [docs/INTEGRACOES.md](docs/INTEGRACOES.md).
