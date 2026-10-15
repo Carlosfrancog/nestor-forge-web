@@ -2,6 +2,7 @@
 
 const { execFile } = require('node:child_process');
 const crypto = require('node:crypto');
+const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
 const https = require('node:https');
 const os = require('node:os');
@@ -85,14 +86,49 @@ function verifyPackage(contents, release) {
   }
 }
 
-async function installRelease(release, cliPath) {
+function findCliScript(executable, fileSystem = fsSync) {
+  const directory = path.dirname(executable);
+  const candidates = [path.join(directory, 'resources', 'app', 'out', 'cli.js')];
+  try {
+    for (const entry of fileSystem.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isDirectory() && /^[a-f0-9]{10,40}$/i.test(entry.name)) {
+        candidates.push(path.join(directory, entry.name, 'resources', 'app', 'out', 'cli.js'));
+      }
+    }
+  } catch (_) {}
+  return candidates.find(candidate => fileSystem.existsSync(candidate));
+}
+
+function resolveCli(configured, { platform = process.platform, executable = process.execPath,
+  environment = process.env, fileSystem = fsSync } = {}) {
+  if (configured && configured !== 'auto') {
+    if (platform === 'win32' && /\.(cmd|bat|exe)$/i.test(configured)) {
+      const editor = /\.exe$/i.test(configured)
+        ? configured : path.join(path.dirname(path.dirname(configured)), 'Code.exe');
+      const script = findCliScript(editor, fileSystem);
+      if (!script) throw new Error('A CLI do VS Code não foi encontrada junto ao executável configurado.');
+      return { command: editor, args: [script], env: { ...environment, ELECTRON_RUN_AS_NODE: '1', VSCODE_DEV: '' } };
+    }
+    return { command: configured, args: [], env: environment };
+  }
+  if (platform === 'win32') {
+    const script = findCliScript(executable, fileSystem);
+    if (!script) throw new Error('A CLI do VS Code não foi encontrada junto ao editor. Configure agentOrchestra.vscodeCliPath.');
+    return { command: executable, args: [script], env: { ...environment, ELECTRON_RUN_AS_NODE: '1', VSCODE_DEV: '' } };
+  }
+  return { command: environment.VSCODE_CLI || executable, args: [], env: environment };
+}
+
+async function installRelease(release, cli) {
   const contents = await readHttps(release.url, MAX_VSIX);
   verifyPackage(contents, release);
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'agentorchestra-update-'));
   const file = path.join(temp, `agentorchestra-${release.version}.vsix`);
   try {
     await fs.writeFile(file, contents);
-    await execFileAsync(cliPath, ['--install-extension', file, '--force'], { timeout: 120000, windowsHide: true });
+    const invocation = typeof cli === 'string' ? { command: cli, args: [], env: process.env } : cli;
+    await execFileAsync(invocation.command, [...invocation.args, '--install-extension', file, '--force'],
+      { timeout: 120000, windowsHide: true, env: invocation.env });
   } finally {
     await fs.rm(temp, { recursive: true, force: true });
   }
@@ -137,12 +173,9 @@ function start(context, vscode) {
 
   async function install(release) {
     try {
-      const configuredCli = settings().get('vscodeCliPath');
-      const cliPath = configuredCli === 'auto'
-        ? (process.platform === 'win32' ? process.execPath : (process.env.VSCODE_CLI || process.execPath))
-        : configuredCli;
+      const cli = resolveCli(settings().get('vscodeCliPath'));
       await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Instalando AgentOrchestra ${release.version}…` },
-        () => installRelease(release, cliPath));
+        () => installRelease(release, cli));
       await context.globalState.update('updateInstalledVersion', release.version);
       const choice = await vscode.window.showInformationMessage(`AgentOrchestra ${release.version} instalado. Recarregue o VS Code para ativá-lo.`, 'Recarregar janela');
       if (choice === 'Recarregar janela') await vscode.commands.executeCommand('workbench.action.reloadWindow');
@@ -158,4 +191,4 @@ function start(context, vscode) {
   context.subscriptions.push({ dispose: () => { clearTimeout(startup); clearInterval(interval); } });
 }
 
-module.exports = { compareVersions, validateRelease, verifyPackage, fetchRelease, installRelease, start };
+module.exports = { compareVersions, validateRelease, verifyPackage, fetchRelease, findCliScript, resolveCli, installRelease, start };
