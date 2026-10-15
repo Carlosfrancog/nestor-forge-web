@@ -14,6 +14,9 @@ const updates = require('./updates');
 const sharing = require('./share');
 const pythonRuntime = require('./python');
 const { openDashboard } = require('./dashboard');
+const { scanInWorker } = require('./projectMapRunner');
+const { openProjectMap } = require('./projectMapView');
+const { writeProjectDocs } = require('./projectDocs');
 
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
 const localFolders = () => (vscode.workspace.workspaceFolders || []).filter(folder => folder.uri.scheme === 'file');
@@ -306,7 +309,11 @@ async function runAgent(context, provider, registry, showPanel, element, showPan
   try {
     const platform = agentRuns.platformFor(element.item.category);
     const name = agentRuns.agentName(element.item);
-    const prompt = agentRuns.buildPrompt(platform, name, preset, detail);
+    let prompt = agentRuns.buildPrompt(platform, name, preset, detail);
+    const projectContext = path.join(folder.uri.fsPath, '.agentorchestra', 'context', 'project-handoff.json');
+    if (fs.existsSync(projectContext)) {
+      prompt += '\n\nAntes de começar, leia .agentorchestra/context/project-handoff.json para localizar módulos, arquivos-chave e mudanças recentes. Abra os arquivos citados conforme a tarefa; confirme informações que possam ter mudado.';
+    }
     const startedAt = new Date().toISOString();
     if (surface.value === 'extension') {
       const extensionId = platform === 'claude' ? 'anthropic.claude-code' : 'openai.chatgpt';
@@ -427,6 +434,30 @@ async function monitor(context, provider, enable) {
       : 'Hooks do AgentOrchestra removidos deste projeto.');
   } catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
 }
+
+function gitOutput(root, args) {
+  return new Promise(resolve => execFile('git', args, {
+    cwd: root, windowsHide: true, timeout: 5000, maxBuffer: 256 * 1024
+  }, (error, stdout) => resolve(error ? '' : stdout.trim())));
+}
+
+async function recentGitChanges(root) {
+  const output = await gitOutput(root, ['log', '-n', '10', '--format=commit:%h%x09%s', '--name-only']);
+  const changes = [];
+  for (const line of output.split(/\r?\n/)) {
+    if (line.startsWith('commit:')) {
+      const [hash, ...subject] = line.slice(7).split('\t');
+      if (/^[a-f0-9]{7,40}$/i.test(hash)) changes.push({ hash, message: subject.join(' ').slice(0, 180), paths: [] });
+    } else if (line && changes.length && !line.startsWith('commit:')) {
+      const value = line.replace(/\\/g, '/');
+      if (!value.startsWith('../') && !path.posix.isAbsolute(value) && changes.at(-1).paths.length < 8) {
+        changes.at(-1).paths.push(value);
+      }
+    }
+  }
+  return changes;
+}
+
 function activate(context) {
   updates.start(context, vscode);
   const logFile = path.join(context.globalStorageUri.fsPath, 'activity.jsonl');
@@ -448,6 +479,70 @@ function activate(context) {
     panel.onDidDispose(() => dashboards.delete(key));
     return panel;
   };
+  const projectStates = new Map();
+  const projectState = folder => {
+    const root = folder.uri.fsPath;
+    if (projectStates.has(root)) return projectStates.get(root);
+    const handoff = path.join(root, '.agentorchestra', 'context', 'project-handoff.json');
+    const state = { root, name: folder.name, view: null, report: null, scanPromise: null,
+      docsEnabled: fs.existsSync(handoff), lastRevision: null };
+    if (state.docsEnabled) {
+      try { state.lastRevision = JSON.parse(fs.readFileSync(handoff, 'utf8')).revision || null; }
+      catch { /* A próxima leitura reconstruirá o contexto. */ }
+    }
+    projectStates.set(root, state);
+    return state;
+  };
+  const scanState = state => {
+    if (state.scanPromise) return state.scanPromise;
+    state.scanPromise = vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification, title: `Mapeando ${state.name}…`, cancellable: true
+    }, async (progress, token) => {
+      const controller = new AbortController();
+      token.onCancellationRequested(() => controller.abort());
+      const options = { python: setting('pythonPath'), go: setting('goPath'), signal: controller.signal,
+        onProgress: ({ folder, folders }) => {
+          if (folders % 12 === 0) { progress.report({ message: `${folders} pastas` }); state.view?.loading(`Lendo ${folder}…`); }
+        } };
+      let report = await scanInWorker(state.root, options);
+      const missingPython = report.warnings.some(item => item.kind === 'parse' &&
+        /\.py$/i.test(item.path || '') && /ENOENT|not found|não (é|foi) (encontrad|reconhecid)/i.test(item.message || ''));
+      if (missingPython && !controller.signal.aborted) {
+        options.python = await pythonRuntime.resolvePython(context, vscode);
+        report = await scanInWorker(state.root, options);
+      }
+      report.git = { changes: await recentGitChanges(state.root) };
+      state.report = report;
+      state.lastRevision = report.revision;
+      state.view?.update(report);
+      return report;
+    }).finally(() => { state.scanPromise = null; });
+    return state.scanPromise;
+  };
+  const generateProjectDocs = async state => {
+    if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de gerar documentação.');
+    const report = await scanState(state);
+    const result = await writeProjectDocs(state.root, report);
+    state.docsEnabled = true;
+    vscode.window.showInformationMessage(`Contexto e documentação atualizados em ${state.name}.`, 'Abrir índice')
+      .then(choice => choice === 'Abrir índice' && vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(result.indexPath)));
+    return report;
+  };
+  const showProjectMap = async () => {
+    if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de mapear arquivos.');
+    const folder = await selectFolder('Projeto para mapear');
+    if (!folder) return;
+    const state = projectState(folder);
+    if (state.view) { state.view.panel.reveal(vscode.ViewColumn.One); return state.view; }
+    const view = openProjectMap(vscode, context, { path: state.root, name: state.name }, {
+      onRescan: () => scanState(state), onGenerateDocs: () => generateProjectDocs(state)
+    });
+    state.view = view;
+    view.panel.onDidDispose(() => { if (state.view === view) state.view = null; });
+    if (state.report) view.update(state.report);
+    else scanState(state).catch(error => { if (error.name !== 'AbortError') view.error(error); });
+    return view;
+  };
   const view = vscode.window.createTreeView('agentOrchestra.files', { treeDataProvider: provider, showCollapseAll: true });
   view.message = provider.roots.length ? undefined : 'Nenhum agente encontrado. Use a Forja para criar um no projeto.';
   context.subscriptions.push(view, provider.changed);
@@ -467,6 +562,13 @@ function activate(context) {
     'agentOrchestra.runScript': element => runScript(context, provider, element),
     'agentOrchestra.shareAgent': element => shareAgent(context, provider, element),
     'agentOrchestra.importPackage': () => importAgentPackage(context, provider),
+    'agentOrchestra.projectMap': showProjectMap,
+    'agentOrchestra.generateProjectDocs': async () => {
+      if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de gerar documentação.');
+      const folder = await selectFolder('Projeto para documentar');
+      if (folder) try { await generateProjectDocs(projectState(folder)); }
+      catch (error) { vscode.window.showErrorMessage(`AgentOrchestra: ${error.message}`); }
+    },
     'agentOrchestra.open': openFile,
     'agentOrchestra.preview': previewFile,
     'agentOrchestra.reveal': element => { const file = fileFrom(element); if (file) return vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(file)); },
@@ -486,6 +588,33 @@ function activate(context) {
   }
   const timer = setInterval(refresh, 15000);
   context.subscriptions.push({ dispose: () => clearInterval(timer) });
+  for (const folder of localFolders()) {
+    const handoff = path.join(folder.uri.fsPath, '.agentorchestra', 'context', 'project-handoff.json');
+    if (fs.existsSync(handoff)) projectState(folder);
+  }
+  let checkingProjects = false;
+  const refreshProjectContexts = async () => {
+    if (checkingProjects || !vscode.workspace.isTrusted) return;
+    checkingProjects = true;
+    try {
+      for (const state of projectStates.values()) {
+        if (!state.docsEnabled && !state.view) continue;
+        const revision = await gitOutput(state.root, ['rev-parse', 'HEAD']);
+        if (!revision || revision === state.lastRevision || state.scanPromise) continue;
+        const previous = state.lastRevision;
+        try {
+          const report = await scanState(state);
+          if (state.docsEnabled) await writeProjectDocs(state.root, report);
+        } catch (error) {
+          state.lastRevision = previous;
+          state.view?.error(error);
+        }
+      }
+    } finally { checkingProjects = false; }
+  };
+  const projectTimer = setInterval(refreshProjectContexts, 45000);
+  const firstProjectRefresh = setTimeout(refreshProjectContexts, 4000);
+  context.subscriptions.push({ dispose: () => { clearInterval(projectTimer); clearTimeout(firstProjectRefresh); } });
 }
 function deactivate() {}
 module.exports = { activate, deactivate };

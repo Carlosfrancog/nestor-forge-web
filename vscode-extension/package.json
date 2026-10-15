@@ -1,8 +1,8 @@
 {
   "name": "agentorchestra",
   "displayName": "AgentOrchestra",
-  "description": "Explore agentes e skills, crie com a Forja e analise mudanças do projeto.",
-  "version": "0.4.2",
+  "description": "Explore agentes e skills, mapeie o projeto e gere contexto para documentação.",
+  "version": "0.5.0",
   "publisher": "nestor-forge",
   "icon": "media/agents.png",
   "engines": {
@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/updates.js && node --check src/share.js && node --check src/python.js && node --check src/structural.js && node --check src/diffAst.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
+    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/updates.js && node --check src/share.js && node --check src/python.js && node --check src/structural.js && node --check src/diffAst.js && node --check src/projectMap.js && node --check src/projectMapView.js && node --check src/projectMapRunner.js && node --check src/projectMapWorker.js && node --check src/projectDocs.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
     "vscode:prepublish": "python ../scripts/bundle_extension_backend.py"
   },
   "contributes": {
@@ -125,6 +125,16 @@
         "command": "agentOrchestra.checkUpdates",
         "title": "AgentOrchestra: Verificar atualizações",
         "icon": "$(cloud-download)"
+      },
+      {
+        "command": "agentOrchestra.projectMap",
+        "title": "AgentOrchestra: Mapear projeto",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "agentOrchestra.generateProjectDocs",
+        "title": "AgentOrchestra: Mapear projeto e gerar documentação",
+        "icon": "$(book)"
       }
     ],
     "menus": {
@@ -167,6 +177,16 @@
         }
       ],
       "view/title": [
+        {
+          "command": "agentOrchestra.projectMap",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@8"
+        },
+        {
+          "command": "agentOrchestra.generateProjectDocs",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@9"
+        },
         {
           "command": "agentOrchestra.checkUpdates",
           "when": "view == agentOrchestra.files",
@@ -323,7 +343,7 @@
         "agentOrchestra.vscodeCliPath": {
           "type": "string",
           "default": "auto",
-          "description": "Executável da CLI do VS Code para instalar atualizações por VSIX. Em auto, usa a CLI do ambiente ou o executável atual; informe um caminho explícito se necessário."
+          "description": "CLI do VS Code para instalar atualizações por VSIX. No Windows, auto usa a CLI incluída junto ao Code.exe; também aceita Code.exe ou bin/code.cmd."
         }
       }
     }

@@ -29,7 +29,7 @@ jobs:
         run: |
           npm ci --prefix vscode-extension
           npm run check --prefix vscode-extension
-          node --test vscode-extension/test/agentRuns.test.js vscode-extension/test/runtime.test.js vscode-extension/test/updates.test.js
+          npm test --prefix vscode-extension
           python -m unittest discover -s vscode-extension/test -p '*share*.py'
           version=$(node -p "require('./vscode-extension/package.json').version")
           mkdir -p dist

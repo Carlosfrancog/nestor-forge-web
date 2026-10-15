@@ -1,6 +1,6 @@
 # AgentOrchestra para VS Code
 
-Extensão local para explorar agentes e skills, criar agentes com a Nestor Forge e investigar mudanças do projeto.
+Extensão local para explorar agentes e skills, criar agentes com a Nestor Forge, mapear projetos e investigar mudanças.
 
 ## O que aparece na barra lateral
 
@@ -18,6 +18,30 @@ Use o botão com ícone de brilho na barra da árvore ou o comando **AgentOrches
 É necessário Python 3.10 ou mais recente. Se `python` não estiver disponível, a extensão baixa Python 3.13 automaticamente para seu armazenamento local na primeira operação que precisar dele. É necessária conexão com a internet nessa primeira vez. Para usar uma instalação própria, ajuste `agentOrchestra.pythonPath`.
 
 ## Atividade, grafo e notas
+
+### Mapa e contexto do projeto
+
+Use **AgentOrchestra: Mapear projeto** para abrir o grafo de módulos e navegar pelas pastas e arquivos. A tela permite buscar, filtrar por módulo, ampliar o grafo e abrir arquivos. O mapeador percorre as pastas em blocos, reaproveita resultados de parser pelo hash dos arquivos e registra relações de imports relativos que conseguiu verificar. Arquivos sem parser continuam no inventário, com a lacuna indicada. O processamento roda em uma thread separada da interface.
+
+Use **AgentOrchestra: Mapear projeto e gerar documentação** para criar `docs/architecture/index.md`, notas por módulo, um resumo das mudanças Git recentes e `.agentorchestra/context/project-handoff.json`. O handoff contém referências, relações, lacunas e hashes, sem copiar código-fonte. As notas manuais são preservadas; só arquivos registrados no manifesto da geração anterior podem ser substituídos. Com o projeto aberto e confiável, a extensão verifica a revisão Git e atualiza o contexto gerado após um `git pull` que altere o commit atual. Ao abrir o projeto novamente, ela também compara a revisão salva.
+
+Quando você executa um agente pelo AgentOrchestra, a instrução aponta para esse handoff, se ele existir. O agente consulta os módulos e abre apenas os arquivos relevantes para a tarefa.
+
+Para ajustar limites, exclusões e agrupamentos, crie `.agentorchestra/documentation.json` no projeto. Por exemplo:
+
+```json
+{
+  "maxFileBytes": 1048576,
+  "exclude": ["storage", "generated"],
+  "modules": [{ "id": "billing", "label": "Faturamento", "paths": ["src/payments"] }],
+  "outputDir": "docs/architecture",
+  "linkStyle": "obsidian"
+}
+```
+
+`linkStyle` pode ser omitido para links Markdown comuns. As notas podem ser copiadas para uma vault Obsidian pelo fluxo de sincronização do projeto; a extensão não monta drives de rede nem executa `rsync` automaticamente.
+
+### Painel do agente
 
 No menu de contexto de um agente, abra **Painel do agente**. O painel mostra a atividade observada, a especificação vinculada, um grafo das prioridades e etapas declaradas nela e notas do projeto. Você pode vincular um JSON de especificação e editar as notas Markdown pelo próprio painel. O grafo descreve o plano do agente; ele não reconstrói decisões reais de uma execução.
 
@@ -59,10 +83,10 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.4.2.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.5.0.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.4.2.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.4.2.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.0.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.0.vsix` na raiz do repositório.
 
 ## Atualizações pelo site
 

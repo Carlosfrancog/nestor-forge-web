@@ -95,6 +95,9 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   finally { Module._load = previousLoad; }
   extension.activate(context);
   t.after(() => { for (const panel of panels) panel.dispose?.(); for (const item of context.subscriptions) item.dispose?.(); });
+  const handoff = path.join(root, '.agentorchestra', 'context', 'project-handoff.json');
+  fs.mkdirSync(path.dirname(handoff), { recursive: true });
+  fs.writeFileSync(handoff, '{"schemaVersion":1}');
   for (const [category, relative, expectedFlag] of [
     ['claudeAgents', '.claude/agents/reviewer.md', '--agent'],
     ['codexAgents', '.codex/agents/builder.toml', '--cd']
@@ -106,6 +109,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
     assert.equal(task.execution.process, process.execPath);
     assert.equal(task.execution.args[0], expectedFlag);
     assert.match(task.execution.args.at(-1), /Revise o serviço de pedidos/);
+    assert.match(task.execution.args.at(-1), /project-handoff\.json/);
     assert.equal(task.execution.options.cwd, root);
     assert.match(panels.at(-1).webview.html, /Abrindo terminal/);
     processStarted.fire({ execution: taskExecutions.at(-1) });
@@ -128,5 +132,6 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   assert.equal(tasks.length, 3);
   assert.ok(openedCommands.includes('claude-vscode.newConversation'));
   assert.match(copiedPrompt, /Revise o serviço de pedidos/);
+  assert.match(copiedPrompt, /project-handoff\.json/);
   assert.match(panels[0].webview.html, /Instrução copiada para a extensão oficial/);
 });
