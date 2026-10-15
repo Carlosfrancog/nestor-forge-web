@@ -1,0 +1,20 @@
+{
+  "exclude": [
+    ".agents",
+    ".claude",
+    ".codex",
+    ".chrome-design",
+    ".uv-cache",
+    "build-agent",
+    "meu-projeto",
+    "nestor-claws-modular-package-review",
+    "Nestor-Claws-v1.0.0",
+    "Nestor-Claws-v1.0.0-review",
+    "nestor_forge.egg-info",
+    "template",
+    "Nestor-Claws-Forge-rebuild.zip",
+    "nestor-claws-modular-package.zip",
+    "Nestor-Claws-v1.0.0.zip"
+  ],
+  "outputDir": "docs/architecture"
+}
