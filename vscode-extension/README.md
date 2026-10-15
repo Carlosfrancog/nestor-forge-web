@@ -83,10 +83,10 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.5.5.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.5.6.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.5.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.5.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.6.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.6.vsix` na raiz do repositório.
 
 ## Atualizações pelo site
 

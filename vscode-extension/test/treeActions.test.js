@@ -25,4 +25,9 @@ test('visible name is spaced and update/import actions use distinct icons', () =
   assert.equal(manifest.displayName, 'Agent Orchestra (Nestor Forge)');
   assert.equal(manifest.contributes.viewsContainers.activitybar[0].title, 'Agent Orchestra');
   assert.notEqual(commands['agentOrchestra.checkUpdates'].icon, commands['agentOrchestra.importPackage'].icon);
+  assert.equal(commands['agentOrchestra.checkUpdates'].icon, '$(versions)');
+  const titleActions = manifest.contributes.menus['view/title'].filter(action => action.group.startsWith('navigation@'));
+  assert.deepEqual(titleActions.map(action => action.command).sort(), [
+    'agentOrchestra.checkUpdates', 'agentOrchestra.forgeCreate', 'agentOrchestra.projectMap'
+  ]);
 });
