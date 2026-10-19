@@ -15,5 +15,5 @@ for commit in $(node -p "Object.keys(require('$HERE/missions.json')).join(' ')")
   mkdir -p "$WORK/pre-$commit/graphify-out"
   cp "$PROJECT/graphify-out/classification.json" "$WORK/pre-$commit/graphify-out/"
   git -C "$PROJECT" diff --name-only "$commit^" "$commit" > "$WORK/gold-$commit.txt"
-  EXT="$EXT" node "$HERE/build-index.js" "$WORK/pre-$commit"
+  node "$EXT/scripts/build-index.js" --root "$WORK/pre-$commit"
 done
