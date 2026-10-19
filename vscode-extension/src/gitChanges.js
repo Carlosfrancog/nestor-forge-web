@@ -26,4 +26,11 @@ async function recentGitChanges(root) {
   return changes;
 }
 
-module.exports = { gitOutput, recentGitChanges };
+/** Caminhos (relativos, POSIX) que o Git do projeto versiona; fora de um repositório, nenhum. */
+async function trackedPaths(root, paths) {
+  const output = await gitOutput(root, ['ls-files', '--', ...paths]);
+  const tracked = new Set(output.split(/\r?\n/).filter(Boolean).map(value => value.replace(/\\/g, '/')));
+  return paths.filter(value => tracked.has(value));
+}
+
+module.exports = { gitOutput, recentGitChanges, trackedPaths };

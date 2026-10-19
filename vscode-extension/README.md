@@ -20,7 +20,7 @@ Use **+ Criar agente** no painel ou o comando **Agent Orchestra: Definir agente 
 
 Use **Agent Orchestra: Mapear projeto** para abrir a estrutura navegável de pastas e arquivos. A tela permite buscar, filtrar por grupo, ampliar o mapa, ver relações verificadas e abrir arquivos. O mapeador percorre as pastas em blocos, lê Python, Go, JavaScript, TypeScript, Vue, PHP, CSS, SQL, Markdown, HTML, XML, JSON e YAML e reaproveita resultados pelo hash dos arquivos. Na extensão, o cache fica em um JSON por projeto no armazenamento da extensão; chamadas diretas ao mapeador sem diretório de cache não criam arquivos temporários. Esse cache guarda resumos de parser e não é enviado ao agente. Arquivos sem parser continuam no inventário, com a lacuna indicada. O processamento roda em uma thread separada da interface.
 
-Use **Agent Orchestra: Mapear projeto e documentar com agente** para criar o handoff `.agentorchestra/context/project-handoff.json` e o índice `.agentorchestra/context/index.jsonl`. Depois escolha Codex, Claude ou copie a instrução para outro agente. O agente confirma os fluxos no código e escreve guias manuais em `docs/architecture/guides/`. O handoff guarda referências, relações, lacunas e hashes; o índice guarda arquivos, unidades AST e seções de notas com faixas de linhas, sem corpos de código. O comando não cria nem atualiza listas Markdown em `docs/architecture/`. O contexto é atualizado quando a revisão Git muda; a redação de guias pelo agente só inicia por comando do desenvolvedor.
+Use **Agent Orchestra: Mapear projeto e documentar com agente** para criar o handoff `.agentorchestra/context/project-handoff.json` e o índice `.agentorchestra/context/index.jsonl`. Depois escolha Codex, Claude ou copie a instrução para outro agente. O agente confirma os fluxos no código e escreve guias manuais em `docs/architecture/guides/`. O handoff guarda referências, relações, lacunas e hashes; o índice guarda arquivos, unidades AST e seções de notas com faixas de linhas, sem corpos de código. O comando não cria nem atualiza listas Markdown em `docs/architecture/`. O contexto é atualizado quando a revisão Git muda, exceto quando o handoff ou o índice são versionados no projeto: nesse caso só os comandos manuais os regravam, para não deixar uma mudança nova a cada commit; a redação de guias pelo agente só inicia por comando do desenvolvedor.
 
 Em projetos com graphy-refat, a classificação vem de `graphify-out/classification.json`; rode `bash graphy-refat/run.sh all` para gerá-la ou atualizá-la. Sem esse arquivo, o mapeador agrupa pelo diretório. Uma classificação de outra revisão ainda é usada, com aviso de defasagem.
 
@@ -84,10 +84,10 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.5.11.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.6.1.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.11.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.11.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.6.1.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.6.1.vsix` na raiz do repositório.
 
 ## Atualizações pelo site
 

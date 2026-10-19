@@ -30,3 +30,5 @@ nestor-claws-modular-package-review/
 /vscode-extension/node_modules/
 .vscode/settings.json
 .agentorchestra/cache/
+/.agentorchestra/context/index.jsonl
+/.agentorchestra/context/index-meta.json

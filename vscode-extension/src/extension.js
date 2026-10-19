@@ -22,7 +22,10 @@ const { readClassification } = require('./graphyClassification');
 const { buildContextIndex, writeContextIndex } = require('./contextIndex');
 const { route, renderRouteCard } = require('./contextRouter');
 const { documentationPrompt } = require('./projectDocumentationAgent');
-const { gitOutput, recentGitChanges } = require('./gitChanges');
+const { gitOutput, recentGitChanges, trackedPaths } = require('./gitChanges');
+
+const CONTEXT_OUTPUTS = ['.agentorchestra/context/project-handoff.json',
+  '.agentorchestra/context/index.jsonl', '.agentorchestra/context/index-meta.json'];
 
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
 const localFolders = () => (vscode.workspace.workspaceFolders || []).filter(folder => folder.uri.scheme === 'file');
@@ -453,7 +456,7 @@ function activate(context) {
     state.view?.update(report);
     return index;
   };
-  const scanState = state => {
+  const scanState = (state, { writeContext = true } = {}) => {
     if (state.scanPromise) return state.scanPromise;
     state.scanPromise = vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification, title: `Mapeando ${state.name}…`, cancellable: true
@@ -474,7 +477,7 @@ function activate(context) {
         report = await scanInWorker(state.root, options);
       }
       report.git = { changes: await recentGitChanges(state.root) };
-      if (state.docsEnabled || state.indexRequested) await buildStateIndex(state, report);
+      if (writeContext && (state.docsEnabled || state.indexRequested)) await buildStateIndex(state, report);
       state.report = report;
       state.lastRevision = report.revision;
       state.view?.update(report);
@@ -613,8 +616,11 @@ function activate(context) {
         if (!revision || revision === state.lastRevision || state.scanPromise) continue;
         const previous = state.lastRevision;
         try {
-          const report = await scanState(state);
-          if (state.docsEnabled) await writeHandoff(state.root, report);
+          // Saída versionada seria regravada a cada commit e deixaria sempre outra mudança
+          // para commitar; nesse caso só os comandos manuais escrevem o contexto.
+          const tracked = await trackedPaths(state.root, CONTEXT_OUTPUTS);
+          const report = await scanState(state, { writeContext: !tracked.length });
+          if (state.docsEnabled && !tracked.length) await writeHandoff(state.root, report);
         } catch (error) {
           state.lastRevision = previous;
           state.view?.error(error);
