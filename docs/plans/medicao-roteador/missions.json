@@ -1,0 +1,5 @@
+{
+ "21c0712": "No painel de metadados do item, mostrar o aviso de nenhum item encontrado quando a busca de itens relacionados não retorna resultados; na ficha pública do item, abrir os links dos valores de metadados em nova guia e fazer o mapa ocupar uma coluna só.",
+ "15bad37": "Adicionar o tipo de metadado Geolocalização: coordenadas com mapa Leaflet/OpenStreetMap no painel do item e na ficha pública, zoom inicial configurável no metadado e coordenadas fora da busca do acervo.",
+ "12c9982": "Metadados do tipo autoridade devem usar os itens da coleção de origem no painel do item, no site, nos filtros e na busca; bloquear a troca da coleção de origem quando já houver valores; fechar o modal ao salvar."
+}
