@@ -8,6 +8,14 @@ Plano de integrações com Claude Cowork, plugins e CLI: [docs/INTEGRACOES.md](d
 
 Para outro agente consultar as perguntas, responder por JSON e receber um relatório compacto sem abrir o assistente, use [o executor para agentes](docs/AGENT_RUNNER.md).
 
+O [Forjador de Agentes](examples/forjador-de-agentes.json) usa esse executor para criar, validar e instalar novos agentes com os destinos nativos da Forja. Para instalar o próprio Forjador no projeto atual (Claude Code e Codex), execute na raiz deste repositório:
+
+```powershell
+python -B scripts/agent_run.py run --answers examples/forjador-de-agentes.json --target unified-project --output .
+```
+
+As entradas geradas em `.agents/`, `.claude/` e `.codex/` são locais e ignoradas pelo Git; o JSON acima permite reinstalá-las em outro checkout.
+
 Para inspecionar mudanças de código Python por AST e criar commits com caminhos explícitos sem enviar diffs ou logs ao agente:
 
 ```powershell
