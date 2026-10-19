@@ -20,11 +20,11 @@ Use **+ Criar agente** no painel ou o comando **Agent Orchestra: Definir agente 
 
 Use **Agent Orchestra: Mapear projeto** para abrir a estrutura navegável de pastas e arquivos. A tela permite buscar, filtrar por grupo, ampliar o mapa, ver relações verificadas e abrir arquivos. O mapeador percorre as pastas em blocos, lê Python, Go, JavaScript, TypeScript, Vue, PHP, CSS, SQL, Markdown, HTML, XML, JSON e YAML e reaproveita resultados pelo hash dos arquivos. Na extensão, o cache fica em um JSON por projeto no armazenamento da extensão; chamadas diretas ao mapeador sem diretório de cache não criam arquivos temporários. Esse cache guarda resumos de parser e não é enviado ao agente. Arquivos sem parser continuam no inventário, com a lacuna indicada. O processamento roda em uma thread separada da interface.
 
-Use **Agent Orchestra: Mapear projeto e documentar com agente** para criar `docs/architecture/index.md`, notas automáticas por grupo, um resumo das mudanças Git recentes e `.agentorchestra/context/project-handoff.json`. Depois escolha Codex, Claude ou copie a instrução para outro agente. O agente usa o handoff como índice, confirma os fluxos no código e escreve guias em `docs/architecture/guides/`. O handoff contém referências, relações, lacunas e hashes, sem copiar código-fonte. As notas manuais e os guias do agente são preservados; só arquivos registrados no manifesto da geração anterior podem ser substituídos. Com o projeto aberto e confiável, a extensão verifica a revisão Git após um `git pull` e atualiza o mapa em memória. Se o handoff ou uma nota gerada estiver versionada, a saída automática só é regravada pelo comando de documentação, para evitar mudanças geradas após cada commit. A redação pelo agente só inicia por comando do desenvolvedor.
+Use **Agent Orchestra: Mapear projeto e documentar com agente** para criar o handoff `.agentorchestra/context/project-handoff.json` e o índice `.agentorchestra/context/index.jsonl`. Depois escolha Codex, Claude ou copie a instrução para outro agente. O agente confirma os fluxos no código e escreve guias manuais em `docs/architecture/guides/`. O handoff guarda referências, relações, lacunas e hashes; o índice guarda arquivos, unidades AST e seções de notas com faixas de linhas, sem corpos de código. O comando não cria nem atualiza listas Markdown em `docs/architecture/`. O contexto é atualizado quando a revisão Git muda; a redação de guias pelo agente só inicia por comando do desenvolvedor.
 
-Em Laravel, o mapeador segue a taxonomia usada pelo gerador de notas Graphify: identifica os Models principais e procura o mesmo domínio em controllers, requests, services, actions, policies, observers, páginas e componentes Vue. Assim, `app/Models/Order.php`, `app/Services/Orders/` e `resources/js/pages/admin/orders/` formam um único módulo `Order`. Pastas como `app/Http` e `routes` continuam sendo camadas técnicas quando não há correspondência. Pastas explícitas como `app/Modules/Billing` e `Modules/Billing` continuam sendo módulos de domínio. O `graph.json` do Graphify descreve arquivos e relações; as tabelas de equivalência entre nomes de domínio pertencem à taxonomia do projeto e não são inferidas desse JSON.
+Em projetos com graphy-refat, a classificação vem de `graphify-out/classification.json`; rode `bash graphy-refat/run.sh all` para gerá-la ou atualizá-la. Sem esse arquivo, o mapeador agrupa pelo diretório. Uma classificação de outra revisão ainda é usada, com aviso de defasagem.
 
-Quando você executa um agente pelo Agent Orchestra, a instrução aponta para esse handoff, se ele existir. O agente consulta os módulos e abre apenas os arquivos relevantes para a tarefa.
+Use **Agent Orchestra: Construir índice de contexto** para criar o índice sob demanda. Ao executar um agente, a extensão anexa um cartão de rota com arquivos e faixas relevantes, notas contextuais e riscos registrados. O agente pode fazer novas consultas com `node scripts/find.js --root <projeto> "<pergunta>"` (ou `--json`). Se o cartão não bastar, a instrução indica o handoff. Recomenda-se ignorar `.agentorchestra/context/index*.json*` no Git do projeto alvo.
 
 Para ajustar limites, exclusões e agrupamentos, crie `.agentorchestra/documentation.json` no projeto. Por exemplo:
 
@@ -33,12 +33,6 @@ Para ajustar limites, exclusões e agrupamentos, crie `.agentorchestra/documenta
   "maxFileBytes": 1048576,
   "exclude": ["storage", "generated"],
   "modules": [{ "id": "billing", "label": "Faturamento", "paths": ["src/payments"] }],
-  "taxonomy": {
-    "modelToModule": { "UserProfile": "User" },
-    "domainToModule": { "Profile": "User", "Settings": "Config" },
-    "frontendPages": { "settings/permissions": "Permission", "settings": "Config" },
-    "frontendComponents": { "011/profile": "User" }
-  },
   "outputDir": "docs/architecture",
   "linkStyle": "obsidian"
 }
@@ -46,7 +40,7 @@ Para ajustar limites, exclusões e agrupamentos, crie `.agentorchestra/documenta
 
 `linkStyle` pode ser omitido para links Markdown comuns. As notas podem ser copiadas para uma vault Obsidian pelo fluxo de sincronização do projeto; a extensão não monta drives de rede nem executa `rsync` automaticamente.
 
-As chaves de `taxonomy` correspondem às tabelas `MODEL_TO_MODULE`, `DOMAIN_TO_MODULE`, `FE_PAGES` e `FE_COMPONENTS` do script Python. Use somente as exceções do projeto: os nomes que coincidem com um Model são associados automaticamente. Em `frontendPages` e `frontendComponents`, caminhos mais específicos têm prioridade. A configuração `modules` por caminho tem prioridade sobre a taxonomia.
+`taxonomy` foi descontinuada; use `graphy.toml`. `modules` continua disponível para agrupamentos explícitos no modo genérico.
 
 ### Painel do agente
 
