@@ -9,7 +9,7 @@ function documentationPrompt({ handoff = '.agentorchestra/context/project-handof
     `Leia primeiro ${handoff}. Use arquivos-chave, relações e lacunas para escolher blocos pequenos de código a verificar. Não carregue o repositório inteiro nem copie o cache do parser para o contexto.`,
     laravel,
     `Escreva a documentação validada em ${docs}/guides/README.md e, se houver áreas de negócio confirmadas, em notas específicas sob ${docs}/guides/. Explique responsabilidades, entradas, fluxos e dependências com referências a arquivos e linhas. Marque inferências e pontos não verificados.`,
-    `Preserve ${docs}/index.md, ${docs}/modules/ e o manifesto de geração: são saídas automáticas que podem ser atualizadas após um pull. Preserve também notas manuais existentes.`,
+    'Se existir graphify-out/vault-modules/CONTEXTO/, leia as notas contextuais antes de escrever guias e não as duplique. Preserve notas manuais existentes.',
     'Ao terminar, resuma os guias criados e as dúvidas que ainda exigem leitura humana.'
   ].join('\n\n');
 }

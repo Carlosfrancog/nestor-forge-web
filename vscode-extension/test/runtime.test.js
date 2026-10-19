@@ -107,6 +107,10 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   const handoff = path.join(root, '.agentorchestra', 'context', 'project-handoff.json');
   fs.mkdirSync(path.dirname(handoff), { recursive: true });
   fs.writeFileSync(handoff, '{"schemaVersion":1}');
+  fs.writeFileSync(path.join(path.dirname(handoff), 'index-meta.json'),
+    JSON.stringify({ schemaVersion: 1, revision: 'abc123', classification: { present: false }, counts: {} }));
+  fs.writeFileSync(path.join(path.dirname(handoff), 'index.jsonl'),
+    JSON.stringify({ id: 'project', kind: 'project', parent: null, label: 'project' }) + '\n');
   for (const [category, relative, expectedFlag] of [
     ['claudeAgents', '.claude/agents/reviewer.md', '--agent'],
     ['codexAgents', '.codex/agents/builder.toml', '--cd']
@@ -140,6 +144,8 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   assert.equal(tasks.length, 3);
   assert.ok(openedCommands.includes('claude-vscode.newConversation'));
   assert.match(copiedPrompt, /Revise o serviço de pedidos/);
+  assert.match(copiedPrompt, /## Rota para a missão/);
+  assert.match(copiedPrompt, /scripts[\\/]find\.js/);
   assert.match(copiedPrompt, /project-handoff\.json/);
   assert.match(panels[0].webview.html, /Instrução copiada para a extensão oficial/);
   const script = path.join(root, 'script.js');
@@ -153,5 +159,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   await callbacks.get('agentOrchestra.generateProjectDocs')();
   assert.equal(tasks.at(-1).definition.type, 'agentOrchestra.documentation');
   assert.match(tasks.at(-1).execution.args.at(-1), /guides\/README\.md/);
-  assert.ok(fs.existsSync(path.join(root, 'docs', 'architecture', 'index.md')));
+  assert.ok(fs.existsSync(path.join(root, '.agentorchestra', 'context', 'project-handoff.json')));
+  assert.ok(fs.existsSync(path.join(root, '.agentorchestra', 'context', 'index.jsonl')));
+  assert.ok(!fs.existsSync(path.join(root, 'docs', 'architecture', 'index.md')));
 });

@@ -17,11 +17,22 @@ const { openDashboard } = require('./dashboard');
 const { createCatalogView } = require('./catalogView');
 const { scanInWorker } = require('./projectMapRunner');
 const { openProjectMap } = require('./projectMapView');
-const { hasTrackedGeneratedOutput, writeProjectDocs } = require('./projectDocs');
+const { writeHandoff } = require('./projectDocs');
+const { readClassification } = require('./graphyClassification');
+const { buildContextIndex, writeContextIndex } = require('./contextIndex');
+const { route, renderRouteCard } = require('./contextRouter');
 const { documentationPrompt } = require('./projectDocumentationAgent');
 
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
 const localFolders = () => (vscode.workspace.workspaceFolders || []).filter(folder => folder.uri.scheme === 'file');
+
+function readLocalJson(file) {
+  try {
+    const stat = fs.lstatSync(file);
+    if (!stat.isFile() || stat.isSymbolicLink()) return null;
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch { return null; }
+}
 
 class AgentsCatalogProvider {
   constructor(extensionPath, platformFilter = 'claude') {
@@ -277,9 +288,28 @@ async function runAgent(context, provider, registry, showPanel, element, showPan
     const platform = agentRuns.platformFor(element.item.category);
     const name = agentRuns.agentName(element.item);
     let prompt = agentRuns.buildPrompt(platform, name, preset, detail);
+    const projectIndex = path.join(folder.uri.fsPath, '.agentorchestra', 'context', 'index.jsonl');
+    if (fs.existsSync(projectIndex) && !fs.lstatSync(projectIndex).isSymbolicLink()) {
+      try {
+        const records = fs.readFileSync(projectIndex, 'utf8').split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+        const meta = readLocalJson(path.join(path.dirname(projectIndex), 'index-meta.json'));
+        if (meta?.schemaVersion !== 1) throw new Error('versão do índice desconhecida');
+        const mission = detail.trim() || `${preset.label} diff atual`;
+        const graphy = path.join(folder.uri.fsPath, 'graphify-out');
+        const rawLogic = readLocalJson(path.join(graphy, 'logic.json'));
+        const rawSchema = readLocalJson(path.join(graphy, 'schema.json'));
+        const logic = rawLogic?.schemaVersion && rawLogic.schemaVersion !== 1 ? null : rawLogic;
+        const schema = rawSchema?.schemaVersion && rawSchema.schemaVersion !== 1 ? null : rawSchema;
+        const result = route({ records, meta }, mission, { root: folder.uri.fsPath, logic, schema });
+        const findCommand = `node "${path.join(context.extensionPath, 'scripts', 'find.js')}" --root . "<pergunta>"`;
+        prompt = agentRuns.withRouteCard(prompt, renderRouteCard(result), findCommand);
+      } catch (error) {
+        console.warn(`Agent Orchestra: índice de contexto indisponível: ${error.message}`);
+      }
+    }
     const projectContext = path.join(folder.uri.fsPath, '.agentorchestra', 'context', 'project-handoff.json');
     if (fs.existsSync(projectContext)) {
-      prompt += '\n\nAntes de começar, leia .agentorchestra/context/project-handoff.json para localizar módulos, arquivos-chave e mudanças recentes. Abra os arquivos citados conforme a tarefa; confirme informações que possam ter mudado.';
+      prompt += '\n\nSe o cartão não bastar, leia .agentorchestra/context/project-handoff.json para localizar módulos, arquivos-chave e mudanças recentes. Abra os arquivos citados conforme a tarefa; confirme informações que possam ter mudado.';
     }
     const startedAt = new Date().toISOString();
     if (surface.value === 'extension') {
@@ -429,13 +459,21 @@ function activate(context) {
     if (projectStates.has(root)) return projectStates.get(root);
     const handoff = path.join(root, '.agentorchestra', 'context', 'project-handoff.json');
     const state = { root, name: folder.name, view: null, report: null, scanPromise: null,
-      docsEnabled: fs.existsSync(handoff), lastRevision: null };
+      docsEnabled: fs.existsSync(handoff), indexRequested: false, lastRevision: null };
     if (state.docsEnabled) {
       try { state.lastRevision = JSON.parse(fs.readFileSync(handoff, 'utf8')).revision || null; }
       catch { /* A próxima leitura reconstruirá o contexto. */ }
     }
     projectStates.set(root, state);
     return state;
+  };
+  const buildStateIndex = async (state, report) => {
+    const classification = await readClassification(state.root);
+    const index = await buildContextIndex(state.root, report, { classification });
+    await writeContextIndex(state.root, index);
+    report.contextIndex = index.meta.counts;
+    state.view?.update(report);
+    return index;
   };
   const scanState = state => {
     if (state.scanPromise) return state.scanPromise;
@@ -458,6 +496,7 @@ function activate(context) {
         report = await scanInWorker(state.root, options);
       }
       report.git = { changes: await recentGitChanges(state.root) };
+      if (state.docsEnabled || state.indexRequested) await buildStateIndex(state, report);
       state.report = report;
       state.lastRevision = report.revision;
       state.view?.update(report);
@@ -468,8 +507,10 @@ function activate(context) {
   const generateProjectDocs = async state => {
     if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de gerar documentação.');
     const report = await scanState(state);
-    const result = await writeProjectDocs(state.root, report);
+    const result = await writeHandoff(state.root, report);
     state.docsEnabled = true;
+    if (result.warnings.length) report.warnings.push(...result.warnings.map(message => ({ kind: 'legacy-docs', message })));
+    await buildStateIndex(state, report);
     const relative = value => path.relative(state.root, value).split(path.sep).join('/');
     const prompt = documentationPrompt({ handoff: relative(result.handoffPath), docs: relative(result.outputDir), framework: report.framework });
     const choice = await vscode.window.showQuickPick([
@@ -535,6 +576,17 @@ function activate(context) {
     'agentOrchestra.shareAgent': element => shareAgent(context, element),
     'agentOrchestra.importPackage': () => importAgentPackage(context, provider),
     'agentOrchestra.projectMap': showProjectMap,
+    'agentOrchestra.buildContextIndex': async () => {
+      if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de construir o índice.');
+      const folder = await selectFolder('Projeto para indexar');
+      if (!folder) return;
+      try {
+        const state = projectState(folder);
+        state.indexRequested = true;
+        await scanState(state);
+        vscode.window.showInformationMessage('Índice de contexto atualizado.');
+      } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
+    },
     'agentOrchestra.generateProjectDocs': async () => {
       if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de gerar documentação.');
       const folder = await selectFolder('Projeto para documentar');
@@ -584,10 +636,7 @@ function activate(context) {
         const previous = state.lastRevision;
         try {
           const report = await scanState(state);
-          // Generated files record HEAD and recent commits. Rewriting tracked
-          // output after every commit would always leave another change to commit.
-          const trackedOutput = state.docsEnabled && await hasTrackedGeneratedOutput(state.root);
-          if (state.docsEnabled && !trackedOutput) await writeProjectDocs(state.root, report);
+          if (state.docsEnabled) await writeHandoff(state.root, report);
         } catch (error) {
           state.lastRevision = previous;
           state.view?.error(error);

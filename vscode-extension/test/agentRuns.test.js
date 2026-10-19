@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { PRESETS, platformFor, agentName, buildPrompt, cliArgs } = require('../src/agentRuns');
+const { PRESETS, platformFor, agentName, buildPrompt, withRouteCard, cliArgs } = require('../src/agentRuns');
 const { discover } = require('../src/catalog');
 
 test('ready workflows create a task for the selected agent and keep CLI arguments separate', t => {
@@ -35,6 +35,15 @@ test('free mission and bug workflow require a concrete task', () => {
     assert.throws(() => buildPrompt('claude', 'reviewer', preset, ' '), /Descreva a tarefa/);
   }
   assert.throws(() => platformFor('skills'), /Selecione um agente/);
+});
+
+test('route card and follow-up command appear before handoff guidance', () => {
+  const command = 'node "C:\\extension\\scripts\\find.js" --root . "<pergunta>"';
+  const prompt = withRouteCard('Missão', '## Rota para a missão\n1. `app/Item.php:2-4`', command);
+  assert.ok(prompt.indexOf('## Rota para a missão') > prompt.indexOf('Missão'));
+  assert.match(prompt, /Para novas consultas/);
+  assert.match(prompt, /scripts\\find\.js/);
+  assert.equal(withRouteCard('Missão', '', command), 'Missão');
 });
 
 test('ready workflows appear in each project tree and point to the run command', t => {

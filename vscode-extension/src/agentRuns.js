@@ -48,8 +48,14 @@ function buildPrompt(platform, name, preset, task) {
   return [delegation, preset.instruction, detail && `Contexto do desenvolvedor: ${detail}`].filter(Boolean).join('\n\n');
 }
 
+function withRouteCard(prompt, card, findCommand) {
+  if (!card || !String(card).trim()) return prompt;
+  return [prompt, String(card).trim(),
+    `Para novas consultas, rode \`${findCommand}\`.`].join('\n\n');
+}
+
 function cliArgs(platform, name, prompt, cwd) {
   return platform === 'claude' ? ['--agent', name, prompt] : ['--cd', cwd, prompt];
 }
 
-module.exports = { PRESETS, platformFor, agentName, buildPrompt, cliArgs };
+module.exports = { PRESETS, platformFor, agentName, buildPrompt, withRouteCard, cliArgs };

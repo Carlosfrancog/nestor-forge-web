@@ -1,18 +1,14 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const crypto = require('node:crypto');
-const { execFile } = require('node:child_process');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { promisify } = require('node:util');
-const { buildHandoff, hasTrackedGeneratedOutput, writeProjectDocs } = require('../src/projectDocs');
-const execFileAsync = promisify(execFile);
+const { buildHandoff, writeHandoff } = require('../src/projectDocs');
 
 async function project(t) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentorchestra-docs-test-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentorchestra-handoff-test-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   return root;
 }
@@ -32,28 +28,6 @@ function report(root, override = {}) {
   };
 }
 
-test('detects Git-tracked generated files before automatic publication', async t => {
-  const root = await project(t);
-  const handoff = path.join(root, '.agentorchestra', 'context', 'project-handoff.json');
-  await fs.mkdir(path.dirname(handoff), { recursive: true });
-  await fs.writeFile(handoff, '{}\n');
-  await execFileAsync('git', ['init', '-q'], { cwd: root });
-  assert.equal(await hasTrackedGeneratedOutput(root), false);
-  await execFileAsync('git', ['add', '--', '.agentorchestra/context/project-handoff.json'], { cwd: root });
-  assert.equal(await hasTrackedGeneratedOutput(root), true);
-
-  const docsOnly = await project(t);
-  await execFileAsync('git', ['init', '-q'], { cwd: docsOnly });
-  const output = path.join(docsOnly, 'docs', 'architecture');
-  await fs.mkdir(output, { recursive: true });
-  await fs.writeFile(path.join(output, '.agentorchestra-docs-manifest.json'),
-    JSON.stringify({ schemaVersion: 1, files: ['index.md'] }));
-  await fs.writeFile(path.join(output, 'index.md'), '# Mapa\n');
-  assert.equal(await hasTrackedGeneratedOutput(docsOnly), false);
-  await execFileAsync('git', ['add', '--', 'docs/architecture/index.md'], { cwd: docsOnly });
-  assert.equal(await hasTrackedGeneratedOutput(docsOnly), true);
-});
-
 test('handoff is compact, stable and carries path/line evidence without source text', async t => {
   const root = await project(t);
   const data = report(root);
@@ -69,132 +43,57 @@ test('handoff is compact, stable and carries path/line evidence without source t
   assert.notEqual(buildHandoff(report(root, { revision: 'def456' })).mapHash, handoff.mapHash);
 });
 
-test('consumes scanner module labels, file symbols and source/target edges', async t => {
+test('publishes only atomic JSON handoff and leaves existing documentation untouched', async t => {
   const root = await project(t);
-  const data = report(root, {
-    files: [{ id: 'src/main.ts', path: 'src/main.ts', module: 'app', symbols: [{ key: 'function:start', line: 7 }] }],
-    modules: [{ id: 'app', label: 'Aplicação', fileCount: 1 }],
-    edges: [{ source: 'src/main.ts', target: 'src/other.ts', kind: 'imports', count: 1 }],
-    stats: { folders: 4 },
+  const docs = path.join(root, 'docs', 'architecture');
+  await fs.mkdir(docs, { recursive: true });
+  await fs.writeFile(path.join(docs, 'index.md'), '# Manual\n');
+  const rename = fs.rename;
+  let atomic = false;
+  t.mock.method(fs, 'rename', async (from, to) => {
+    assert.match(from, /\.tmp$/);
+    assert.equal(path.basename(to), 'project-handoff.json');
+    const draft = JSON.parse(await fs.readFile(from, 'utf8'));
+    assert.equal(draft.revision, 'abc123');
+    atomic = true;
+    return rename(from, to);
   });
-  const handoff = buildHandoff(data);
-  assert.equal(handoff.modules[0].name, 'Aplicação');
-  assert.deepEqual(handoff.modules[0].keyFiles, [{ path: 'src/main.ts', line: 7 }]);
-  assert.equal(handoff.modules[0].relations[0].type, 'imports');
-  assert.equal(handoff.counts.folders, 4);
+  const result = await writeHandoff(root, report(root));
+  assert.ok(atomic);
+  assert.equal((await fs.readFile(result.handoffPath, 'utf8')).includes('SECRET RAW CODE'), false);
+  assert.equal(await fs.readFile(path.join(docs, 'index.md'), 'utf8'), '# Manual\n');
+  assert.deepEqual(await fs.readdir(docs), ['index.md']);
 });
 
-test('handoff preserves Laravel domain versus technical layer classification', async t => {
+test('failed publication preserves prior handoff', async t => {
   const root = await project(t);
-  const data = report(root, {
-    framework: 'Laravel',
-    files: [{ id: 'app/Modules/Billing/Invoice.php', path: 'app/Modules/Billing/Invoice.php', module: 'app/Modules/Billing' }],
-    modules: [{ id: 'app/Modules/Billing', label: 'Billing', kind: 'domain', path: 'app/Modules/Billing', fileCount: 1 }],
-    edges: [],
-  });
-  const handoff = buildHandoff(data);
-  assert.equal(handoff.framework, 'Laravel');
-  assert.equal(handoff.modules[0].kind, 'domain');
+  const first = await writeHandoff(root, report(root));
+  const original = await fs.readFile(first.handoffPath, 'utf8');
+  t.mock.method(fs, 'rename', async () => { throw new Error('rename failed'); });
+  await assert.rejects(writeHandoff(root, report(root, { revision: 'new' })), /rename failed/);
+  assert.equal(await fs.readFile(first.handoffPath, 'utf8'), original);
+  assert.equal((await fs.readdir(path.dirname(first.handoffPath))).some(name => name.endsWith('.tmp')), false);
 });
 
-test('publishing preserves manual notes and replaces only manifest-owned notes', async t => {
+test('rejects symlink in handoff destination', async t => {
   const root = await project(t);
-  const first = await writeProjectDocs(root, report(root));
-  const modulePath = first.generatedPaths.find(filename => filename.includes(`${path.sep}modules${path.sep}`));
-  const manualPath = path.join(first.outputDir, 'manual.md');
-  const guidePath = path.join(first.outputDir, 'guides', 'README.md');
-  await fs.mkdir(path.dirname(guidePath), { recursive: true });
-  await fs.writeFile(guidePath, '# Guia validado pelo agente\n');
-  await fs.writeFile(manualPath, '# Anotações do time\n');
-  await fs.writeFile(modulePath, 'old generated content');
-  const second = await writeProjectDocs(root, report(root, { revision: 'next' }));
-  assert.equal(await fs.readFile(manualPath, 'utf8'), '# Anotações do time\n');
-  assert.equal(await fs.readFile(guidePath, 'utf8'), '# Guia validado pelo agente\n');
-  assert.ok(!(await fs.readFile(modulePath, 'utf8')).includes('old generated content'));
-  assert.ok((await fs.readFile(second.indexPath, 'utf8')).includes('next'));
-  assert.match(await fs.readFile(second.indexPath, 'utf8'), /guides\/README\.md/);
-  const handoff = JSON.parse(await fs.readFile(second.handoffPath, 'utf8'));
-  assert.equal(handoff.revision, 'next');
-  assert.equal(handoff.mapHash.length, 64);
-});
-
-test('copies existing documentation into a stage that does not already exist', async t => {
-  const root = await project(t);
-  await writeProjectDocs(root, report(root));
-  const copy = fs.cp;
-  t.mock.method(fs, 'cp', async (source, destination, options) => {
-    await assert.rejects(fs.access(destination), { code: 'ENOENT' });
-    return copy(source, destination, options);
-  });
-  const result = await writeProjectDocs(root, report(root, { revision: 'next' }));
-  assert.ok((await fs.readFile(result.indexPath, 'utf8')).includes('next'));
-});
-
-test('generation failure leaves published docs and manual files untouched', async t => {
-  const root = await project(t);
-  const first = await writeProjectDocs(root, report(root));
-  const original = await fs.readFile(first.indexPath, 'utf8');
-  const manual = path.join(first.outputDir, 'manual.md');
-  await fs.writeFile(manual, 'manual');
-  await fs.rm(path.join(first.outputDir, 'modules'), { recursive: true });
-  await fs.writeFile(path.join(first.outputDir, 'modules'), 'conflicting manual file');
-  await assert.rejects(writeProjectDocs(root, report(root, { revision: 'new' })));
-  assert.equal(await fs.readFile(first.indexPath, 'utf8'), original);
-  assert.equal(await fs.readFile(manual, 'utf8'), 'manual');
-  assert.equal(await fs.readFile(path.join(first.outputDir, 'modules'), 'utf8'), 'conflicting manual file');
-});
-
-test('handoff publication failure restores the prior documentation', async t => {
-  const root = await project(t);
-  const first = await writeProjectDocs(root, report(root));
-  const original = await fs.readFile(first.indexPath, 'utf8');
-  await fs.rm(first.handoffPath);
-  await fs.mkdir(first.handoffPath);
-  await assert.rejects(writeProjectDocs(root, report(root, { revision: 'new' })));
-  assert.equal(await fs.readFile(first.indexPath, 'utf8'), original);
-});
-
-test('rejects an output path whose parent redirects outside the project', async t => {
-  const root = await project(t);
-  const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'agentorchestra-docs-outside-'));
+  const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'agentorchestra-handoff-outside-'));
   t.after(() => fs.rm(outside, { recursive: true, force: true }));
-  try { await fs.symlink(outside, path.join(root, 'docs'), 'junction'); }
+  try { await fs.symlink(outside, path.join(root, '.agentorchestra'), 'junction'); }
   catch (error) { if (error.code === 'EPERM') return t.skip('Symlinks não permitidos neste ambiente.'); throw error; }
-  await assert.rejects(writeProjectDocs(root, report(root)), /Link simbólico/);
+  await assert.rejects(writeHandoff(root, report(root)), /Link simbólico/);
   assert.deepEqual(await fs.readdir(outside), []);
 });
 
-test('module links are stable and Obsidian links are opt-in', async t => {
+test('warns once about old generated Markdown without deleting it', async t => {
   const root = await project(t);
-  const data = report(root);
-  const first = await writeProjectDocs(root, data);
-  const expected = `modules/app-${crypto.createHash('sha256').update(JSON.stringify('app')).digest('hex').slice(0, 8)}.md`;
-  assert.ok((await fs.readFile(first.indexPath, 'utf8')).includes(`](${expected})`));
-  await fs.mkdir(path.join(root, '.agentorchestra'), { recursive: true });
-  await fs.writeFile(path.join(root, '.agentorchestra', 'documentation.json'), JSON.stringify({ linkStyle: 'obsidian' }));
-  const second = await writeProjectDocs(root, report(root, { modules: [{ ...data.modules[0], name: 'Aplicação Renomeada' }] }));
-  assert.ok((await fs.readFile(second.indexPath, 'utf8')).includes(`[[${expected.replace(/\.md$/, '')}|Aplicação Renomeada]]`));
-  assert.deepEqual(first.generatedPaths.sort(), second.generatedPaths.sort());
-});
-
-test('manual index is not overwritten on first generation', async t => {
-  const root = await project(t);
-  const output = path.join(root, 'docs', 'architecture');
-  await fs.mkdir(output, { recursive: true });
-  await fs.writeFile(path.join(output, 'index.md'), '# Índice manual\n');
-  await assert.rejects(writeProjectDocs(root, report(root)), /Nota manual ocupa/);
-  assert.equal(await fs.readFile(path.join(output, 'index.md'), 'utf8'), '# Índice manual\n');
-});
-
-test('git note is emitted only when report contains a summary', async t => {
-  const root = await project(t);
-  const first = await writeProjectDocs(root, report(root));
-  assert.ok(!first.generatedPaths.some(filename => filename.endsWith('changes.md')));
-  const second = await writeProjectDocs(root, report(root, { git: { commits: [{ hash: 'abc123', message: 'Ajusta parser', paths: ['src/api.ts'] }] } }));
-  assert.ok(second.generatedPaths.some(filename => filename.endsWith('changes.md')));
-  assert.ok((await fs.readFile(path.join(second.outputDir, 'changes.md'), 'utf8')).includes('Ajusta parser'));
-  const handoff = JSON.parse(await fs.readFile(second.handoffPath, 'utf8'));
-  assert.deepEqual(handoff.git.changes, [{ hash: 'abc123', subject: 'Ajusta parser', paths: ['src/api.ts'] }]);
-  const third = await writeProjectDocs(root, report(root));
-  await assert.rejects(fs.access(path.join(third.outputDir, 'changes.md')));
+  const docs = path.join(root, 'docs', 'architecture');
+  await fs.mkdir(docs, { recursive: true });
+  await fs.writeFile(path.join(docs, '.agentorchestra-docs-manifest.json'), '{}');
+  await fs.writeFile(path.join(docs, 'index.md'), '# antigo');
+  const first = await writeHandoff(root, report(root));
+  const second = await writeHandoff(root, report(root));
+  assert.equal(first.warnings.length, 1);
+  assert.deepEqual(second.warnings, []);
+  assert.equal(await fs.readFile(path.join(docs, 'index.md'), 'utf8'), '# antigo');
 });

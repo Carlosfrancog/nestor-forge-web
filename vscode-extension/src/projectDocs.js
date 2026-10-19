@@ -1,43 +1,11 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { execFile } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { promisify } = require('node:util');
 
 const MANIFEST = '.agentorchestra-docs-manifest.json';
 const HANDOFF = '.agentorchestra/context/project-handoff.json';
-const execFileAsync = promisify(execFile);
-
-async function hasTrackedGeneratedOutput(root) {
-  const projectRoot = path.resolve(root);
-  let config;
-  try { config = await readConfig(projectRoot); }
-  catch { return true; }
-  const destination = path.resolve(projectRoot, config.outputDir || 'docs/architecture');
-  if (!inside(projectRoot, destination)) return true;
-  const outputDir = path.relative(projectRoot, destination).split(path.sep).join('/');
-  const paths = [HANDOFF, `${outputDir}/${MANIFEST}`];
-  try {
-    const manifest = JSON.parse(await fs.readFile(path.join(destination, MANIFEST), 'utf8'));
-    if (manifest?.schemaVersion !== 1) return true;
-    for (const name of list(manifest.files)) {
-      if (typeof name !== 'string' || !/^[a-z0-9/_.-]+$/i.test(name) || name.includes('..')) return true;
-      paths.push(`${outputDir}/${name}`);
-    }
-  } catch (error) {
-    if (error.code !== 'ENOENT') return true;
-  }
-  try {
-    const { stdout } = await execFileAsync('git', ['ls-files', '--', ...paths], {
-      cwd: projectRoot, windowsHide: true, timeout: 5000, maxBuffer: 256 * 1024
-    });
-    return Boolean(stdout.trim());
-  } catch {
-    return false;
-  }
-}
 
 function list(value) { return Array.isArray(value) ? value : []; }
 function str(value) { return typeof value === 'string' ? value : ''; }
@@ -57,15 +25,6 @@ function relativePath(value, root) {
 }
 
 function safeId(value) { return short(String(value ?? ''), 160); }
-function display(value) { return short(value, 200).replace(/[\[\]`|]/g, ''); }
-function md(value) { return display(value).replace(/[\\*_<>]/g, '\\$&'); }
-function fileRef(value) { return `\`${str(value).replace(/`/g, '')}\``; }
-function slug(value) {
-  const plain = str(value).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
-  return plain || 'modulo';
-}
-function moduleFilename(module) { return `modules/${slug(module.id)}-${digest(module.id).slice(0, 8)}.md`; }
 
 function normalize(report, root) {
   if (!report || report.schemaVersion !== 1) throw new Error('Mapa de projeto incompatível: schemaVersion 1 é obrigatório.');
@@ -171,60 +130,6 @@ function buildHandoff(report) {
     }, modules, gaps: unique(map.warnings.map(warningText)).slice(0, 12), ...(git ? { git } : {}) };
 }
 
-function link(target, label, obsidian) {
-  if (obsidian) return `[[${target.replace(/\.md$/, '')}|${display(label)}]]`;
-  return `[${md(label)}](${encodeURI(target).replace(/\(/g, '%28').replace(/\)/g, '%29')})`;
-}
-
-function gitLines(report, root) {
-  const source = report.git || report.gitSummary;
-  if (!source || source.enabled === false) return [];
-  const changes = compactGit(report, root)?.changes || [];
-  if (!changes.length && !source.summary) return [];
-  const lines = ['# Mudanças recentes', '', 'Resumo fornecido pelo mapeamento do projeto.', ''];
-  if (source.summary) lines.push(md(short(source.summary, 400)), '');
-  for (const change of changes) {
-    lines.push(`- ${change.hash ? `\`${change.hash}\` ` : ''}${md(change.subject)}${change.paths.length ? ` — ${change.paths.map(fileRef).join(', ')}` : ''}`);
-  }
-  return lines.concat('');
-}
-
-function generatedMarkdown(root, report, handoff, config) {
-  const map = normalize(report, root);
-  const obsidian = config.linkStyle === 'obsidian' || config.linkStyle === 'wikilinks' || config.obsidian === true;
-  const result = new Map();
-  const index = [`# ${md(handoff.project)} — mapa do projeto`, '',
-    `Revisão: ${fileRef(handoff.revision || 'não informada')} · Mapa: ${fileRef(handoff.mapHash.slice(0, 12))}`, '',
-    `Pastas: ${handoff.counts.folders} · Arquivos: ${handoff.counts.files} · Módulos: ${handoff.counts.modules} · Relações: ${handoff.counts.relations}`, '',
-    '## Módulos', ''];
-  for (const module of handoff.modules) {
-    const filename = moduleFilename(module);
-    const groupLabel = ({ domain: 'módulo de domínio', configured: 'módulo configurado', package: 'pacote', layer: 'camada técnica', directory: 'diretório', support: 'suporte' })[module.kind] || 'grupo';
-    index.push(`- ${link(filename, module.name, obsidian)} — ${groupLabel}; ${module.counts.files} arquivos, ${module.counts.relations} relações`);
-    const files = moduleFiles(map.modules.find(item => item.id === module.id), map.files);
-    const lines = [`# ${md(module.name)}`, '', `ID: ${fileRef(module.id)} · Tipo: ${md(groupLabel)}`, '',
-      `Arquivos: ${files.length} · Relações: ${module.counts.relations}`, '', '## Arquivos', ''];
-    for (const file of files) lines.push(`- ${fileRef(file.path)}${positiveLine(file.line) ? `:${positiveLine(file.line)}` : ''}`);
-    if (!files.length) lines.push('Nenhum arquivo atribuído.');
-    lines.push('', '## Relações principais', '');
-    for (const edge of module.relations) lines.push(`- ${fileRef(edge.from)} → ${fileRef(edge.to)} (${md(edge.type)})${edge.evidence ? ` — ${fileRef(edge.evidence.path)}${edge.evidence.line ? `:${edge.evidence.line}` : ''}` : ''}`);
-    if (!module.relations.length) lines.push('Nenhuma relação identificada.');
-    if (module.gaps.length) lines.push('', '## Lacunas de mapeamento', '', ...module.gaps.map(gap => `- ${md(gap)}`));
-    if (module.evidence.length) lines.push('', '## Evidências', '', ...module.evidence.map(item => `- ${fileRef(item.path)}${item.line ? `:${item.line}` : ''}`));
-    result.set(filename, `${lines.join('\n')}\n`);
-  }
-  if (!handoff.modules.length) index.push('Nenhum módulo identificado.');
-  if (handoff.gaps.length) index.push('', '## Lacunas gerais', '', ...handoff.gaps.map(gap => `- ${md(gap)}`));
-  index.push('', '## Guias verificados pelo agente', '',
-    `${link('guides/README.md', 'Abrir guias', obsidian)} — criado pelo agente de documentação após verificar o código.`);
-  const git = gitLines(report, root);
-  if (git.length) {
-    result.set('changes.md', `${git.join('\n')}\n`);
-    index.push('', '## Histórico', '', link('changes.md', 'Mudanças recentes', obsidian));
-  }
-  result.set('index.md', `${index.join('\n')}\n`);
-  return result;
-}
 
 function inside(root, target) {
   const relative = path.relative(root, target);
@@ -245,12 +150,6 @@ async function rejectPathSymlinks(root, target) {
   }
 }
 
-async function rejectSymlinks(directory) {
-  for (const item of await fs.readdir(directory, { withFileTypes: true })) {
-    if (item.isSymbolicLink()) throw new Error(`Link simbólico não permitido na documentação: ${item.name}`);
-    if (item.isDirectory()) await rejectSymlinks(path.join(directory, item.name));
-  }
-}
 
 async function rejectSymlinkAncestors(root, target) {
   const parts = path.relative(root, target).split(path.sep);
@@ -277,76 +176,35 @@ async function readConfig(root) {
   }
 }
 
-async function writeProjectDocs(root, report, options = {}) {
+const legacyWarnings = new Set();
+
+async function writeHandoff(root, report) {
   const projectRoot = path.resolve(root);
   const config = await readConfig(projectRoot);
-  const requested = options.outputDir || config.outputDir || 'docs/architecture';
-  const destination = path.resolve(projectRoot, requested);
-  if (!inside(projectRoot, destination) || destination === projectRoot) throw new Error('A pasta de documentação deve ficar dentro do projeto.');
-  if (!inside(projectRoot, path.join(projectRoot, HANDOFF))) throw new Error('Destino de contexto inválido.');
-  await rejectPathSymlinks(projectRoot, destination);
-  await rejectPathSymlinks(projectRoot, path.join(projectRoot, HANDOFF));
-  await rejectSymlinkAncestors(projectRoot, destination);
-  await rejectSymlinkAncestors(projectRoot, path.join(projectRoot, HANDOFF));
+  const handoffPath = path.join(projectRoot, HANDOFF);
+  await rejectPathSymlinks(projectRoot, handoffPath);
+  await rejectSymlinkAncestors(projectRoot, handoffPath);
   const handoff = buildHandoff({ ...report, root: projectRoot });
-  const markdown = generatedMarkdown(projectRoot, report, handoff, config);
-  const parent = path.dirname(destination);
-  await fs.mkdir(parent, { recursive: true });
-  const stagingRoot = await fs.mkdtemp(path.join(parent, '.agentorchestra-docs-stage-'));
-  const stage = path.join(stagingRoot, 'contents');
-  const backup = path.join(stagingRoot, 'backup');
-  let oldMoved = false;
-  let published = false;
+  const temporary = `${handoffPath}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
   try {
-    let previous = [];
+    await fs.mkdir(path.dirname(handoffPath), { recursive: true });
+    await fs.writeFile(temporary, `${JSON.stringify(handoff, null, 2)}\n`, 'utf8');
+    await fs.rename(temporary, handoffPath);
+  } finally {
+    await fs.rm(temporary, { force: true });
+  }
+  const outputDir = path.resolve(projectRoot, config.outputDir || 'docs/architecture');
+  const warnings = [];
+  if (inside(projectRoot, outputDir) && !legacyWarnings.has(projectRoot)) {
     try {
-      await rejectSymlinks(destination);
-      await fs.cp(destination, stage, { recursive: true, force: false, errorOnExist: true });
-      const manifest = JSON.parse(await fs.readFile(path.join(stage, MANIFEST), 'utf8'));
-      if (manifest?.schemaVersion === 1) previous = list(manifest.files).filter(name => /^[a-z0-9/_.-]+$/i.test(name) && !name.includes('..'));
+      await fs.access(path.join(outputDir, MANIFEST));
+      warnings.push('documentação gerada antiga em docs/architecture não é mais atualizada; pode ser removida');
+      legacyWarnings.add(projectRoot);
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }
-    await fs.mkdir(stage, { recursive: true });
-    for (const filename of markdown.keys()) {
-      if (previous.includes(filename)) continue;
-      try {
-        await fs.access(path.join(stage, filename));
-        throw new Error(`Nota manual ocupa o destino gerado: ${filename}`);
-      } catch (error) {
-        if (error.code !== 'ENOENT') throw error;
-      }
-    }
-    for (const filename of previous) await fs.rm(path.join(stage, filename), { force: true });
-    for (const [filename, contents] of markdown) {
-      const fullPath = path.join(stage, filename);
-      await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      await fs.writeFile(fullPath, contents, 'utf8');
-    }
-    await fs.writeFile(path.join(stage, MANIFEST), `${JSON.stringify({ schemaVersion: 1, files: [...markdown.keys()].sort(), mapHash: handoff.mapHash }, null, 2)}\n`, 'utf8');
-    try { await fs.rename(destination, backup); oldMoved = true; } catch (error) { if (error.code !== 'ENOENT') throw error; }
-    try { await fs.rename(stage, destination); published = true; }
-    catch (error) { if (oldMoved) await fs.rename(backup, destination); oldMoved = false; throw error; }
-    const handoffPath = path.join(projectRoot, HANDOFF);
-    const tempHandoff = `${handoffPath}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
-    try {
-      await fs.mkdir(path.dirname(handoffPath), { recursive: true });
-      await fs.writeFile(tempHandoff, `${JSON.stringify(handoff, null, 2)}\n`, 'utf8');
-      await fs.rename(tempHandoff, handoffPath);
-    } catch (error) {
-      await fs.rename(destination, stage);
-      published = false;
-      if (oldMoved) { await fs.rename(backup, destination); oldMoved = false; }
-      throw error;
-    } finally { await fs.rm(tempHandoff, { force: true }); }
-    return { outputDir: destination, indexPath: path.join(destination, 'index.md'),
-      handoffPath, manifestPath: path.join(destination, MANIFEST),
-      generatedPaths: [...markdown.keys()].map(filename => path.join(destination, filename)) };
-  } finally {
-    if (!published) await fs.rm(stage, { recursive: true, force: true });
-    if (oldMoved) await fs.rm(backup, { recursive: true, force: true });
-    await fs.rm(stagingRoot, { recursive: true, force: true });
   }
+  return { handoffPath, outputDir, warnings };
 }
 
-module.exports = { buildHandoff, hasTrackedGeneratedOutput, writeProjectDocs };
+module.exports = { buildHandoff, writeHandoff };
