@@ -22,6 +22,7 @@ const { readClassification } = require('./graphyClassification');
 const { buildContextIndex, writeContextIndex } = require('./contextIndex');
 const { route, renderRouteCard } = require('./contextRouter');
 const { documentationPrompt } = require('./projectDocumentationAgent');
+const { gitOutput, recentGitChanges } = require('./gitChanges');
 
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
 const localFolders = () => (vscode.workspace.workspaceFolders || []).filter(folder => folder.uri.scheme === 'file');
@@ -405,29 +406,6 @@ async function monitor(context, provider, enable) {
       ? 'Hooks locais configurados. O Codex pode pedir confiança nos hooks antes de ativá-los.'
       : 'Hooks do Agent Orchestra removidos deste projeto.');
   } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
-}
-
-function gitOutput(root, args) {
-  return new Promise(resolve => execFile('git', args, {
-    cwd: root, windowsHide: true, timeout: 5000, maxBuffer: 256 * 1024
-  }, (error, stdout) => resolve(error ? '' : stdout.trim())));
-}
-
-async function recentGitChanges(root) {
-  const output = await gitOutput(root, ['log', '-n', '10', '--format=commit:%h%x09%s', '--name-only']);
-  const changes = [];
-  for (const line of output.split(/\r?\n/)) {
-    if (line.startsWith('commit:')) {
-      const [hash, ...subject] = line.slice(7).split('\t');
-      if (/^[a-f0-9]{7,40}$/i.test(hash)) changes.push({ hash, message: subject.join(' ').slice(0, 180), paths: [] });
-    } else if (line && changes.length && !line.startsWith('commit:')) {
-      const value = line.replace(/\\/g, '/');
-      if (!value.startsWith('../') && !path.posix.isAbsolute(value) && changes.at(-1).paths.length < 8) {
-        changes.at(-1).paths.push(value);
-      }
-    }
-  }
-  return changes;
 }
 
 function activate(context) {

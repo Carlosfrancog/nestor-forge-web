@@ -2,7 +2,7 @@
 
 Selecione um agente Claude ou Codex na árvore do Agent Orchestra e clique em **Executar agente**. Escolha um roteiro, acrescente a tarefa quando necessário e escolha onde abrir a sessão.
 
-Quando o projeto tem `.agentorchestra/context/index.jsonl`, a instrução inclui um cartão de rota com arquivos e faixas de linhas, notas e riscos relacionados à tarefa. O cartão aparece tanto no terminal quanto na instrução copiada para a extensão oficial. Para aprofundar uma pergunta, execute `node <caminho-da-extensão>/scripts/find.js --root . "<pergunta>"`; acrescente `--json` para saída estruturada. Se o cartão não bastar, consulte `.agentorchestra/context/project-handoff.json`.
+Quando o projeto tem `.agentorchestra/context/index.jsonl` (comando **Construir índice de contexto** ou `node <caminho-da-extensão>/scripts/build-index.js --root .`), a instrução inclui um cartão de rota com arquivos e faixas de linhas, notas e riscos relacionados à tarefa. O cartão aparece tanto no terminal quanto na instrução copiada para a extensão oficial. Para aprofundar uma pergunta, execute `node <caminho-da-extensão>/scripts/find.js --root . "<pergunta>"`; acrescente `--json` para saída estruturada. Se o cartão não bastar, consulte `.agentorchestra/context/project-handoff.json`.
 
 | Roteiro | Uso |
 | --- | --- |
