@@ -6,10 +6,10 @@ const path = require('node:path');
 const { promisify } = require('node:util');
 const { execFile } = require('node:child_process');
 const { parseSource } = require('./structural');
-const { createLaravelTaxonomy } = require('./moduleTaxonomy');
+const { readClassification, classifyFile } = require('./graphyClassification');
 
 const execFileAsync = promisify(execFile);
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 const DEFAULT_MAX_BYTES = 1024 * 1024;
 const IGNORED_DIRS = new Set([
   '.git', '.hg', '.svn', 'node_modules', 'vendor', 'dist', 'build', 'out',
@@ -125,7 +125,16 @@ function inferLayer(folders) {
   return 'unknown';
 }
 function symbolsOf(parsed) {
-  return (parsed.units || []).map(unit => ({ key: unit.key, kind: unit.kind, line: unit.line || 1 }));
+  return (parsed.units || []).map(unit => ({ key: unit.key, kind: unit.kind, line: unit.line || 1,
+    endLine: unit.endLine || unit.line || 1, fingerprint: unit.fingerprint,
+    calls: (unit.calls || []).slice(0, 40) }));
+}
+function rawImports(source, language) {
+  if (!['PHP', 'JavaScript', 'TypeScript', 'Vue'].includes(language)) return [];
+  const pattern = language === 'PHP'
+    ? /^\s*use\s+[^;\r\n]+;/gm
+    : /^\s*import\s+(?:[^;'"\r\n]*?\s+from\s+)?['"][^'"\r\n]+['"]\s*;?/gm;
+  return [...source.matchAll(pattern)].slice(0, 40).map(match => match[0].trim());
 }
 function relativeImports(source, language) {
   if (!['JavaScript', 'TypeScript', 'Vue', 'PHP', 'Markdown', 'HTML'].includes(language)) return [];
@@ -172,6 +181,11 @@ async function readConfig(root, warnings) {
   try {
     const value = JSON.parse(await fs.readFile(file, 'utf8'));
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('objeto JSON esperado');
+    if (Object.hasOwn(value, 'taxonomy')) {
+      warnings.push({ kind: 'config', path: '.agentorchestra/documentation.json',
+        message: 'taxonomy foi descontinuada; use graphy.toml.' });
+      delete value.taxonomy;
+    }
     return value;
   } catch (error) {
     if (error.code !== 'ENOENT') warnings.push({ kind: 'config', path: '.agentorchestra/documentation.json', message: error.message });
@@ -209,7 +223,7 @@ async function pruneLegacyCache(root) {
 
 /**
  * Build a local, deterministic inventory. Optional documentation.json accepts
- * {maxFileBytes, exclude:[relative directory/file prefixes], modules:[{id,label,paths:[prefixes]}], taxonomy:{...}}.
+ * {maxFileBytes, exclude:[relative directory/file prefixes], modules:[{id,label,paths:[prefixes]}]}.
  * Content hashes cache AST summaries; no embeddings or network requests are used.
  */
 async function scanProject(root, { cacheDir, python, go, onProgress, signal } = {}) {
@@ -219,6 +233,8 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
   aborted(signal);
   const warnings = [];
   const config = await readConfig(absoluteRoot, warnings);
+  const classification = await readClassification(absoluteRoot);
+  warnings.push(...classification.warnings);
   const framework = await detectFramework(absoluteRoot, config);
   const limit = Number.isSafeInteger(config.maxFileBytes) && config.maxFileBytes > 0
     ? Math.min(config.maxFileBytes, 16 * 1024 * 1024) : DEFAULT_MAX_BYTES;
@@ -265,7 +281,8 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
       if (entry.isSymbolicLink()) { stats.ignored++; continue; }
       if (excludes.some(prefix => relative === prefix || relative.startsWith(`${prefix}/`))) { stats.ignored++; continue; }
       if (entry.isDirectory()) {
-        if (IGNORED_DIRS.has(entry.name.toLowerCase()) || /^\.(?:chrome|edge)-/i.test(entry.name)) { stats.ignored++; continue; }
+        if (IGNORED_DIRS.has(entry.name.toLowerCase()) || (framework === 'Laravel' && relative === 'storage') ||
+            /^\.(?:chrome|edge)-/i.test(entry.name)) { stats.ignored++; continue; }
         folders.push({ id: relative, path: relative, parent: folder.relative });
         pending.push({ absolute: path.join(folder.absolute, entry.name), relative });
         continue;
@@ -279,7 +296,7 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
       const language = languageFor(relative);
       const file = { id: relative, path: relative, folder: folder.relative,
         module: null, layer: null, language: language || 'unknown',
-        bytes, hash: null, symbols: [], status: 'without-parser' };
+        bytes, hash: null, symbols: [], imports: [], status: 'without-parser' };
       files.push(file);
       stats.files++;
       if (bytes > limit) { file.status = 'too-large'; stats.tooLarge++; continue; }
@@ -299,7 +316,9 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
       if (!summary) {
         try {
           const parsed = parseSource(content.toString('utf8'), relative, { python, go });
-          summary = { version: CACHE_VERSION, symbols: symbolsOf(parsed), imports: relativeImports(content.toString('utf8'), language) };
+          const source = content.toString('utf8');
+          summary = { version: CACHE_VERSION, symbols: symbolsOf(parsed),
+            imports: relativeImports(source, language), rawImports: rawImports(source, language) };
           stats.parsed++;
         } catch (error) {
           file.status = 'parse-error'; stats.parseErrors++;
@@ -309,6 +328,7 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
       }
       if (cacheRoot) nextCache[cacheKey] = summary;
       file.symbols = summary.symbols;
+      file.imports = summary.rawImports;
       file.status = 'parsed';
       contentImports.set(relative, summary.imports);
       if (stats.files % 32 === 0) await yieldLoop();
@@ -318,19 +338,24 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
 
   files.sort((a, b) => compare(a.path, b.path));
   folders.sort((a, b) => compare(a.path, b.path));
-  const taxonomy = framework === 'Laravel'
-    ? createLaravelTaxonomy(files.map(file => file.path), config.taxonomy) : null;
   for (const file of files) {
     const fallback = moduleAndLayer(file.path, config, framework);
-    const domain = fallback.kind === 'configured' || fallback.kind === 'domain' || fallback.kind === 'package'
-      ? null : taxonomy?.classify(file.path);
-    const assignment = domain ? { ...domain, layer: fallback.layer } : fallback;
+    const graphy = classifyFile(classification, file.path);
+    const assignment = graphy || fallback;
     file.module = assignment.module;
     file.layer = assignment.layer;
     if (!modules.has(assignment.module)) modules.set(assignment.module, {
-      id: assignment.module, label: assignment.label, kind: assignment.kind, path: assignment.path, fileCount: 0,
+      id: assignment.module, label: assignment.label, kind: assignment.kind,
+      path: graphy ? path.posix.dirname(file.path) : assignment.path, fileCount: 0,
     });
-    modules.get(assignment.module).fileCount++;
+    const module = modules.get(assignment.module);
+    if (graphy) {
+      let common = module.path.split('/');
+      const current = path.posix.dirname(file.path).split('/');
+      while (common.length && common.some((part, index) => part !== current[index])) common.pop();
+      module.path = common.join('/') || '.';
+    }
+    module.fileCount++;
   }
   const known = new Set(files.map(file => file.path));
   const edgeCounts = new Map();
@@ -346,7 +371,7 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
   }).sort((a, b) => compare(a.source, b.source) || compare(a.target, b.target));
   const unclassified = modules.get('unclassified')?.fileCount || 0;
   if (unclassified) warnings.push({ kind: 'classification', path: '.', message: `${unclassified} arquivo(s) sem módulo; configure .agentorchestra/documentation.json para classificar.` });
-  if (framework === 'Laravel' && ![...modules.values()].some(module => ['domain', 'configured', 'package'].includes(module.kind))) {
+  if (framework === 'Laravel' && !classification.valid && ![...modules.values()].some(module => ['domain', 'configured', 'package'].includes(module.kind))) {
     warnings.push({ kind: 'classification', path: '.', message: 'Laravel detectado: os grupos atuais são camadas técnicas; a identificação de módulos de negócio precisa de análise do agente ou configuração explícita.' });
   }
   if (cacheFile) {
@@ -364,7 +389,9 @@ async function scanProject(root, { cacheDir, python, go, onProgress, signal } = 
   stats.modules = modules.size;
   return { schemaVersion: 1, root: absoluteRoot, framework, revision: await gitRevision(absoluteRoot),
     generatedAt: new Date().toISOString(), folders, files,
-    modules: [...modules.values()].sort((a, b) => compare(a.id, b.id)), edges, warnings, stats };
+    modules: [...modules.values()].sort((a, b) => compare(a.id, b.id)), edges, warnings, stats,
+    classification: { present: classification.present,
+      revision: classification.valid ? classification.data.revision || null : null, stale: Boolean(classification.stale) } };
 }
 
 module.exports = { scanProject };

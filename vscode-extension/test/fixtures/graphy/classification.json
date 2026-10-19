@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "format": "graphy-refat.classification.v1",
+  "generator": "graphy-refat",
+  "project": "Loja",
+  "profile": "laravel-inertia",
+  "revision": null,
+  "sides": [
+    { "id": "BACKEND", "directory": "BACKEND", "root": "app" },
+    { "id": "frontend", "directory": "FRONTEND", "root": "resources" }
+  ],
+  "layerOrder": ["Model", "Services", "Páginas"],
+  "modules": [
+    {
+      "id": "BACKEND:Book", "side": "BACKEND", "name": "Book", "description": "Livros.",
+      "note": "graphify-out/vault-modules/CONTEXTO/BACKEND/Book/_Book.md",
+      "layers": [
+        { "name": "Model", "note": "graphify-out/vault-modules/CONTEXTO/BACKEND/Book/Model.md" },
+        { "name": "Services", "note": "graphify-out/vault-modules/CONTEXTO/BACKEND/Book/Services.md" }
+      ]
+    },
+    {
+      "id": "frontend:Book", "side": "frontend", "name": "Book", "description": "",
+      "note": "graphify-out/vault-modules/CONTEXTO/FRONTEND/Book/_Book.md",
+      "layers": [
+        { "name": "Páginas", "note": "graphify-out/vault-modules/CONTEXTO/FRONTEND/Book/Páginas.md" }
+      ]
+    }
+  ],
+  "files": {
+    "app/Models/Book.php": { "module": "BACKEND:Book", "layer": "Model" },
+    "app/Services/Book/BookService.php": { "module": "BACKEND:Book", "layer": "Services" },
+    "resources/js/pages/admin/books/Index.vue": { "module": "frontend:Book", "layer": "Páginas" }
+  }
+}

@@ -6,7 +6,6 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { scanProject } = require('../src/projectMap');
-const { buildHandoff } = require('../src/projectDocs');
 
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentorchestra-project-map-'));
@@ -36,7 +35,13 @@ test('maps folders, stable IDs, symbols and only verifiable relative imports', a
   assert.equal(first.stats.cacheEntries, 3);
   assert.ok(first.stats.cacheBytes > 0);
   await assert.rejects(fs.access(path.join(root, '.agentorchestra', 'cache')));
-  assert.ok(first.files.find(file => file.id === 'src/orders/index.js').symbols.some(symbol => symbol.key === 'function:checkout'));
+  const checkout = first.files.find(file => file.id === 'src/orders/index.js').symbols.find(symbol => symbol.key === 'function:checkout');
+  assert.ok(checkout);
+  assert.equal(typeof checkout.endLine, 'number');
+  assert.match(checkout.fingerprint, /^[a-f0-9]{64}$/);
+  assert.deepEqual(checkout.calls, ['total']);
+  assert.deepEqual(first.files.find(file => file.id === 'src/orders/index.js').imports,
+    ["import { total } from './math.js';", "import missing from './missing.js';"]);
   assert.deepEqual(first.edges, [{ source: 'src/orders/index.js', target: 'src/orders/math.js', kind: 'imports', count: 1 }]);
   assert.ok(first.folders.some(folder => folder.id === 'src/orders' && folder.parent === 'src'));
   const second = await scanProject(root, { cacheDir });
@@ -66,6 +71,18 @@ test('omits generated folders and secrets, retains unsupported files, and report
   assert.equal(result.files.find(file => file.id === 'notes.txt').status, 'without-parser');
   assert.ok(result.warnings.some(warning => warning.kind === 'classification'));
   assert.equal(result.stats.ignored >= 3, true);
+});
+
+test('Laravel skips generated storage while generic projects may map a storage source directory', async t => {
+  const { root, write } = await fixture(t);
+  await write('storage/debugbar/log.json', JSON.stringify({ nested: { entries: Array.from({ length: 200 }, (_, i) => i) } }));
+  await write('src/main.js', 'export const main = true;');
+  let report = await scanProject(root);
+  assert.ok(report.files.some(file => file.path === 'storage/debugbar/log.json'));
+  await write('composer.json', JSON.stringify({ require: { 'laravel/framework': '^11.0' } }));
+  report = await scanProject(root);
+  assert.ok(!report.files.some(file => file.path.startsWith('storage/')));
+  assert.ok(report.files.some(file => file.path === 'src/main.js'));
 });
 
 test('configuration assigns module and excludes a custom directory', async t => {
@@ -118,6 +135,24 @@ test('links local Markdown and HTML references but skips remote URLs', async t =
   assert.equal(result.stats.parseErrors, 0);
 });
 
+test('publishes raw PHP imports while preserving resolved local edges', async t => {
+  const { root, write } = await fixture(t);
+  await write('app/Services/Book.php', '<?php class Book {}');
+  await write('app/BookController.php', [
+    '<?php',
+    'use App\\Services\\Book;',
+    'use Illuminate\\Support\\Facades\\Log;',
+    'class BookController {}',
+  ].join('\n'));
+  const result = await scanProject(root);
+  const controller = result.files.find(file => file.path === 'app/BookController.php');
+  assert.deepEqual(controller.imports, [
+    'use App\\Services\\Book;',
+    'use Illuminate\\Support\\Facades\\Log;',
+  ]);
+  assert.ok(result.edges.some(edge => edge.source === controller.path && edge.target === 'app/Services/Book.php'));
+});
+
 test('migrates only recognized legacy cache entries out of the project', async t => {
   const { root, write } = await fixture(t);
   await write('src/main.js', 'export function run() {}');
@@ -147,24 +182,23 @@ test('Laravel distinguishes domain folders from framework layers', async t => {
   const domain = report.modules.find(item => item.id === 'app/Modules/Billing');
   assert.deepEqual({ kind: domain.kind, fileCount: domain.fileCount }, { kind: 'domain', fileCount: 2 });
   assert.equal(report.modules.find(item => item.id === 'app/Http').kind, 'layer');
-  assert.equal(report.modules.find(item => item.id === 'domain:User').kind, 'domain');
+  assert.equal(report.modules.find(item => item.id === 'app/Models').kind, 'layer');
   assert.equal(report.modules.find(item => item.id === 'routes').kind, 'layer');
   assert.ok(report.edges.some(edge => edge.source === 'app/Http/Controllers/HomeController.php' && edge.target === 'app/Modules/Billing/Services/InvoiceService.php'));
 });
 
-test('Laravel maps a model and matching controller to one domain across layers', async t => {
+test('Laravel without Graphy keeps a model and controller in generic technical groups', async t => {
   const { root, write } = await fixture(t);
   await write('composer.json', JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
   await write('app/Http/Controllers/OrderController.php', '<?php class OrderController {}');
   await write('app/Models/Order.php', '<?php class Order {}');
   const report = await scanProject(root);
-  const order = report.modules.find(item => item.id === 'domain:Order');
-  assert.deepEqual({ kind: order.kind, fileCount: order.fileCount, path: order.path },
-    { kind: 'domain', fileCount: 2, path: 'app/Models/Order.php' });
-  assert.equal(report.warnings.some(item => item.message.includes('camadas técnicas')), false);
+  assert.equal(report.files.find(item => item.path === 'app/Models/Order.php').module, 'app/Models');
+  assert.equal(report.files.find(item => item.path === 'app/Http/Controllers/OrderController.php').module, 'app/Http');
+  assert.ok(report.warnings.some(item => item.message.includes('camadas técnicas')));
 });
 
-test('Graphify-style taxonomy joins Laravel domains across backend and frontend without merging technical groups', async t => {
+test('legacy taxonomy config warns and is ignored', async t => {
   const { root, write } = await fixture(t);
   await write('composer.json', JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
   await write('.agentorchestra/documentation.json', JSON.stringify({ taxonomy: {
@@ -187,21 +221,11 @@ test('Graphify-style taxonomy joins Laravel domains across backend and frontend 
   ]) await write(file, file.endsWith('.php') ? '<?php class Example {}' : '<template><div /></template>');
   const report = await scanProject(root);
   const byPath = new Map(report.files.map(file => [file.path, file.module]));
-  for (const file of ['app/Models/Order.php', 'app/Http/Controllers/Admin/Orders/IndexController.php',
-    'app/Services/Orders/CreateOrderService.php', 'app/Policies/OrderPolicy.php',
-    'resources/js/pages/admin/orders/Index.vue']) assert.equal(byPath.get(file), 'domain:Order');
-  for (const file of ['app/Models/User.php', 'app/Models/UserProfile.php',
-    'app/Http/Controllers/Admin/Profile/UpdateController.php', 'resources/js/components/011/profile/Card.vue']) {
-    assert.equal(byPath.get(file), 'domain:User');
-  }
-  assert.equal(byPath.get('resources/js/pages/admin/settings/permissions/Index.vue'), 'domain:Permission');
-  assert.equal(byPath.get('app/Http/Middleware/VerifyCsrfToken.php'), 'app/Http');
+  assert.equal(byPath.get('app/Models/Order.php'), 'app/Models');
+  assert.equal(byPath.get('resources/js/pages/admin/orders/Index.vue'), 'resources');
   assert.equal(byPath.get('routes/web.php'), 'routes');
-  assert.equal(report.modules.find(item => item.id === 'domain:Order').fileCount, 5);
   assert.equal(report.files.find(file => file.path === 'app/Policies/OrderPolicy.php').layer, 'policy');
-  const handoff = buildHandoff(report);
-  assert.equal(handoff.modules.find(item => item.id === 'domain:Order').counts.files, 5);
-  assert.ok(handoff.modules.find(item => item.id === 'domain:Order').keyFiles.some(file => file.path === 'app/Models/Order.php'));
+  assert.ok(report.warnings.some(item => item.kind === 'config' && item.message.includes('taxonomy foi descontinuada')));
 });
 
 test('Laravel without a matching domain keeps technical layers and reports the gap', async t => {
