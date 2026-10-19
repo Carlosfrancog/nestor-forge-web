@@ -83,6 +83,25 @@ function discover(workspaces, home, includeUser = true, builtIn = null) {
   }).filter(root => root.groups.length > 0);
 }
 
+function filterRoots(roots, platform = 'all') {
+  if (platform === 'all') return roots;
+  if (platform !== 'claude' && platform !== 'codex') throw new Error('Filtro de plataforma inválido.');
+  return roots.map(root => ({
+    ...root,
+    groups: root.groups.map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        if (item.category === 'claudeAgents') return platform === 'claude';
+        if (item.category === 'codexAgents') return platform === 'codex';
+        const relative = path.relative(root.path, item.file).split(path.sep);
+        if (relative[0] === '.claude' || item.category === 'instructions' && item.label === 'CLAUDE.md') return platform === 'claude';
+        if (relative[0] === '.codex' || item.category === 'instructions' && item.label === 'AGENTS.md') return platform === 'codex';
+        return true;
+      })
+    })).filter(group => group.items.length > 0)
+  })).filter(root => root.groups.length > 0);
+}
+
 const TEMPLATES = {
   claudeAgent: { label: 'Agente Claude (.claude/agents)', parts: ['.claude', 'agents'], file: name => `${name}.md`, body: name => `---\nname: ${name}\ndescription: Descreva quando usar este agente.\n---\n\n# ${name}\n\nDescreva a missão e as instruções do agente.\n` },
   codexAgent: { label: 'Agente Codex (.codex/agents)', parts: ['.codex', 'agents'], file: name => `${name}.toml`, body: name => `name = "${name}"\ndescription = "Descreva quando usar este agente."\ndeveloper_instructions = "Descreva a missão e as instruções do agente."\n` },
@@ -108,4 +127,4 @@ function createFile(root, kind, name) {
   return file;
 }
 
-module.exports = { CATEGORIES, TEMPLATES, discover, createFile };
+module.exports = { CATEGORIES, TEMPLATES, discover, filterRoots, createFile };

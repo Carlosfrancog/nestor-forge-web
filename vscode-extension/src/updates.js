@@ -116,7 +116,9 @@ function resolveCli(configured, { platform = process.platform, executable = proc
     if (!script) throw new Error('A CLI do VS Code não foi encontrada junto ao editor. Configure agentOrchestra.vscodeCliPath.');
     return { command: executable, args: [script], env: { ...environment, ELECTRON_RUN_AS_NODE: '1', VSCODE_DEV: '' } };
   }
-  return { command: environment.VSCODE_CLI || executable, args: [], env: environment };
+  // In WSL/remote hosts process.execPath is the extension host runtime, not the VS Code CLI.
+  // The remote extension host puts its `code` launcher first on PATH.
+  return { command: environment.VSCODE_CLI || 'code', args: [], env: environment };
 }
 
 async function installRelease(release, cli) {

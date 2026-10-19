@@ -28,6 +28,6 @@ test('visible name is spaced and update/import actions use distinct icons', () =
   assert.equal(commands['agentOrchestra.checkUpdates'].icon, '$(versions)');
   const titleActions = manifest.contributes.menus['view/title'].filter(action => action.group.startsWith('navigation@'));
   assert.deepEqual(titleActions.map(action => action.command).sort(), [
-    'agentOrchestra.checkUpdates', 'agentOrchestra.forgeCreate', 'agentOrchestra.projectMap'
+    'agentOrchestra.checkUpdates', 'agentOrchestra.cyclePlatformFilter', 'agentOrchestra.forgeCreate', 'agentOrchestra.projectMap'
   ]);
 });

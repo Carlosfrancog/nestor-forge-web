@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const vscode = require('vscode');
-const { TEMPLATES, discover, createFile } = require('./catalog');
+const { TEMPLATES, discover, filterRoots, createFile } = require('./catalog');
 const forge = require('./forge');
 const activity = require('./activity');
 const agentRuns = require('./agentRuns');
@@ -23,13 +23,21 @@ const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(k
 const localFolders = () => (vscode.workspace.workspaceFolders || []).filter(folder => folder.uri.scheme === 'file');
 
 class AgentsTreeProvider {
-  constructor(extensionPath, logFile) {
+  constructor(extensionPath, logFile, platformFilter = 'all') {
     this.extensionPath = extensionPath;
     this.logFile = logFile;
     this.changed = new vscode.EventEmitter();
     this.onDidChangeTreeData = this.changed.event;
     this.roots = [];
+    this.platformFilter = platformFilter;
     this.refresh();
+  }
+
+  visibleRoots() { return filterRoots(this.roots, this.platformFilter); }
+
+  setPlatformFilter(value) {
+    this.platformFilter = value;
+    this.changed.fire();
   }
 
   refresh() {
@@ -45,7 +53,7 @@ class AgentsTreeProvider {
   }
 
   getChildren(element) {
-    if (!element) return this.roots.map(root => ({ kind: 'root', root }));
+    if (!element) return this.visibleRoots().map(root => ({ kind: 'root', root }));
     if (element.kind === 'root') return element.root.groups.map(group => ({ kind: 'group', root: element.root, group }));
     if (element.kind === 'group') return element.group.items.map(item => ({ kind: 'file', root: element.root, item }));
     return [];
@@ -119,7 +127,7 @@ async function selectFolder(placeHolder) {
   return selected?.value;
 }
 async function findFile(provider) {
-  const options = provider.roots.flatMap(root => root.groups.flatMap(group => group.items.map(item => ({
+  const options = provider.visibleRoots().flatMap(root => root.groups.flatMap(group => group.items.map(item => ({
     label: item.label, description: `${root.name} · ${group.label}`, detail: item.file, element: { kind: 'file', root, item }
   }))));
   if (!options.length) return vscode.window.showInformationMessage('Nenhum agente ou skill encontrado.');
@@ -284,7 +292,7 @@ async function runAgent(context, provider, registry, showPanel, element, showPan
   if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de executar agentes.');
   const requestedPreset = element?.item?.category === 'agentPreset' ? element.item.preset : null;
   if (!element || !['claudeAgents', 'codexAgents'].includes(element.item?.category)) {
-    const choices = provider.roots.flatMap(root => root.groups.flatMap(group => group.items
+    const choices = provider.visibleRoots().flatMap(root => root.groups.flatMap(group => group.items
       .filter(item => ['claudeAgents', 'codexAgents'].includes(item.category))
       .map(item => ({ label: item.label, description: `${root.name} · ${item.category === 'claudeAgents' ? 'Claude' : 'Codex'}`,
         value: { kind: 'file', root, item } }))));
@@ -470,7 +478,9 @@ async function recentGitChanges(root) {
 function activate(context) {
   updates.start(context, vscode);
   const logFile = path.join(context.globalStorageUri.fsPath, 'activity.jsonl');
-  const provider = new AgentsTreeProvider(context.extensionPath, logFile);
+  const savedFilter = context.workspaceState.get('platformFilter', 'all');
+  const provider = new AgentsTreeProvider(context.extensionPath, logFile,
+    ['all', 'claude', 'codex'].includes(savedFilter) ? savedFilter : 'all');
   const registry = createRunRegistry(context);
   provider.runRegistry = registry;
   context.subscriptions.push(registry.onDidChange(() => provider.changed.fire()));
@@ -576,11 +586,24 @@ function activate(context) {
     return view;
   };
   const view = vscode.window.createTreeView('agentOrchestra.files', { treeDataProvider: provider, showCollapseAll: true });
-  view.message = provider.roots.length ? undefined : 'Nenhum agente encontrado. Use a Forja para criar um no projeto.';
+  const updateViewLabel = () => {
+    view.description = provider.platformFilter === 'all' ? undefined : provider.platformFilter === 'claude' ? 'Claude' : 'Codex';
+    view.message = provider.visibleRoots().length ? undefined :
+      provider.platformFilter === 'all' ? 'Nenhum agente encontrado. Use a Forja para criar um no projeto.' :
+        `Nenhum item encontrado para ${view.description}.`;
+  };
+  updateViewLabel();
   context.subscriptions.push(view, provider.changed);
-  const refresh = () => { provider.refresh(); view.message = provider.roots.length ? undefined : 'Nenhum agente encontrado. Use a Forja para criar um no projeto.'; };
+  const refresh = () => { provider.refresh(); updateViewLabel(); };
   const commands = {
     'agentOrchestra.refresh': refresh,
+    'agentOrchestra.cyclePlatformFilter': async () => {
+      const filters = ['all', 'claude', 'codex'];
+      const next = filters[(filters.indexOf(provider.platformFilter) + 1) % filters.length];
+      provider.setPlatformFilter(next);
+      updateViewLabel();
+      await context.workspaceState.update('platformFilter', next);
+    },
     'agentOrchestra.find': () => findFile(provider),
     'agentOrchestra.create': () => createArtifact(provider),
     'agentOrchestra.forgeCreate': () => createWithForge(context, provider),

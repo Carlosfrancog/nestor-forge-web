@@ -67,3 +67,13 @@ test('reports a missing bundled VS Code CLI before attempting an update', t => {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   assert.throws(() => resolveCli('auto', { platform: 'win32', executable: path.join(root, 'Code.exe') }), /CLI do VS Code/);
 });
+
+test('uses the code launcher in WSL instead of the extension host runtime', () => {
+  const environment = { PATH: '/remote-cli:/usr/bin' };
+  const automatic = resolveCli('auto', { platform: 'linux', executable: '/vscode-server/node', environment });
+  assert.equal(automatic.command, 'code');
+  assert.deepEqual(automatic.args, []);
+  assert.equal(automatic.env, environment);
+  const configured = resolveCli('/remote-cli/code', { platform: 'linux', executable: '/vscode-server/node', environment });
+  assert.equal(configured.command, '/remote-cli/code');
+});

@@ -2,7 +2,7 @@
   "name": "nestor-forge-agent-orchestra",
   "displayName": "Agent Orchestra (Nestor Forge)",
   "description": "Explore agentes e skills, mapeie o projeto e gere contexto para documentação.",
-  "version": "0.5.9",
+  "version": "0.5.10",
   "publisher": "CarlosEFranco",
   "icon": "media/agents.png",
   "engines": {
@@ -46,6 +46,11 @@
         "command": "agentOrchestra.refresh",
         "title": "Agent Orchestra: Atualizar",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "agentOrchestra.cyclePlatformFilter",
+        "title": "Agent Orchestra: Alternar filtro Todos → Claude → Codex",
+        "icon": "$(filter)"
       },
       {
         "command": "agentOrchestra.find",
@@ -225,6 +230,11 @@
           "command": "agentOrchestra.forgeCreate",
           "when": "view == agentOrchestra.files",
           "group": "navigation@3"
+        },
+        {
+          "command": "agentOrchestra.cyclePlatformFilter",
+          "when": "view == agentOrchestra.files",
+          "group": "navigation@4"
         },
         {
           "command": "agentOrchestra.importPackage",

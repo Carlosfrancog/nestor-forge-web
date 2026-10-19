@@ -11,6 +11,8 @@ Extensão local para explorar agentes e skills, criar agentes com a Nestor Forge
 
 Clique em um Markdown para abrir sua prévia em modo de leitura. Ao passar o mouse sobre uma linha, use os botões da própria árvore: nos scripts, **▶** executa sem argumentos, o ícone de lista executa com argumentos e o livro abre as instruções; nos agentes, **▶** inicia a escolha do roteiro e do destino, o grafo abre o painel e o ícone de compartilhar exporta ou instala em outro projeto. Especificações têm botões para gerar e abrir o painel. O menu de contexto continua disponível para editar e copiar caminhos.
 
+O botão de filtro na barra superior alterna entre **Todos → Claude → Codex**. Nos filtros Claude e Codex, a árvore mostra os agentes, skills, scripts e instruções da plataforma escolhida; itens compartilhados da Forja continuam visíveis. O filtro é lembrado por projeto e também vale para as buscas e a escolha rápida de agentes.
+
 ## Criar com a Forja
 
 Use o botão com ícone de brilho na barra da árvore ou o comando **Agent Orchestra: Criar com a Forja**. Escolha projeto, perfil, nome, papel e missão. A extensão grava uma especificação JSON no projeto para revisão. A ação **Gerar a partir da especificação** cria os artefatos Codex + Claude ou somente Claude. Arquivos existentes não são substituídos pela Forja.
@@ -93,14 +95,16 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.5.9.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.5.10.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.9.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.9.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.10.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.10.vsix` na raiz do repositório.
 
 ## Atualizações pelo site
 
 O build do GitHub Pages publica `updates/agentorchestra.json` junto do VSIX. O manifesto informa versão, URL, tamanho e SHA-256. A extensão consulta esse endpoint ao iniciar e depois a cada seis horas. O comando **Agent Orchestra: Verificar atualizações** faz a consulta imediatamente. O padrão é avisar e oferecer **Atualizar agora**; defina `agentOrchestra.updateMode` como `auto` para baixar e instalar sem confirmação, ou `off` para desativar as verificações periódicas. O pacote é instalado pela CLI do VS Code após validar tamanho e hash, e uma recarga da janela ativa a versão nova. Caso a CLI não esteja disponível, defina `agentOrchestra.vscodeCliPath` com o caminho do executável.
+
+No WSL2, a extensão usa a CLI `code` do host remoto para instalar o VSIX no Ubuntu. Se ela não estiver no `PATH` da extensão, configure `agentOrchestra.vscodeCliPath` com o caminho Linux da CLI remota do VS Code, não com `Code.exe` do Windows.
 
 O VS Code não atualiza automaticamente extensões instaladas por VSIX; esse fluxo é próprio do Agent Orchestra e só funciona a partir da versão 0.4.1. O endpoint padrão é `https://carlosfrancog.github.io/nestor-forge-web/updates/agentorchestra.json` e pode ser alterado em `agentOrchestra.updateManifestUrl` se o site mudar de endereço. O manifesto só é publicado quando o VSIX da mesma versão foi gerado.
 
