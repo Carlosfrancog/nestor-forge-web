@@ -52,6 +52,29 @@ test('Markdown, HTML, XML, JSON and YAML expose useful structure', () => {
   assert.ok(parseSource('services:\n  api:\n    port: 8080\n', 'compose.yaml').units.some(unit => unit.key === 'key:services.api.port'));
 });
 
+test('Markdown headings span through nested sections and ignore fenced headings', () => {
+  const source = [
+    '# Contexto',
+    'Introdução',
+    '## Modelo',
+    'Descrição',
+    '```md',
+    '## invisível',
+    '```',
+    '## Serviços',
+    'Texto',
+    '### Riscos',
+    '> [!warning] Atenção',
+  ].join('\n');
+  const headings = parseSource(source, 'nota.md').units;
+  assert.deepEqual(headings.map(({ key, line, endLine }) => ({ key, line, endLine })), [
+    { key: 'heading:1:Contexto', line: 1, endLine: 11 },
+    { key: 'heading:2:Modelo', line: 3, endLine: 7 },
+    { key: 'heading:2:Serviços', line: 8, endLine: 11 },
+    { key: 'heading:3:Riscos', line: 10, endLine: 11 },
+  ]);
+});
+
 test('Python helper reads UTF-8 source on Windows', () => {
   const python = parseSource('"""ação, café e emoji 😀"""\nclass Serviço:\n    pass\n', 'servico.py');
   assert.ok(python.units.some(unit => unit.key === 'class:Serviço'));

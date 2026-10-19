@@ -14,6 +14,7 @@ const yaml = require('yaml');
 
 const php = new PhpParser.Engine({ parser: { suppressErrors: false }, ast: { withPositions: true } });
 const SKIP = new Set(['loc', 'start', 'end', 'range', 'extra', 'comments', 'leadingComments', 'trailingComments', 'innerComments', 'parent', 'raw']);
+let defaultPython = 'python';
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -200,11 +201,20 @@ function parseDocker(source) {
 function parseMarkdown(source) {
   const units = [];
   let fenced = false;
-  for (const [index, line] of source.split(/\r?\n/).entries()) {
+  const lines = source.split(/\r?\n/);
+  for (const [index, line] of lines.entries()) {
     if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
     if (fenced) continue;
     const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
-    if (heading) units.push(unit(`heading:${heading[1].length}:${heading[2].slice(0, 100)}`, 'heading', line, line, [], index + 1));
+    if (heading) {
+      const level = heading[1].length;
+      for (const previous of units) {
+        if (previous.endLine === lines.length && Number(previous.key.split(':')[1]) >= level) previous.endLine = index;
+      }
+      const headingUnit = unit(`heading:${level}:${heading[2].slice(0, 100)}`, 'heading', line, line, [], index + 1);
+      headingUnit.endLine = lines.length;
+      units.push(headingUnit);
+    }
   }
   return { language: 'Markdown', units, features: [], structuralOnly: true };
 }
@@ -282,7 +292,16 @@ function parseSource(source, file, options = {}) {
   if (['.yaml', '.yml'].includes(extension)) return parseData(source, 'YAML');
   if (['.html', '.htm'].includes(extension)) return parseMarkup(source, 'HTML');
   if (extension === '.xml') return parseMarkup(source, 'XML');
-  if (extension === '.py') return parseExternal(options.python || 'python', ['-B', path.join(__dirname, 'helpers', 'python_ast.py')], source);
+  if (extension === '.py') {
+    const args = ['-B', path.join(__dirname, 'helpers', 'python_ast.py')];
+    if (options.python) return parseExternal(options.python, args, source);
+    try { return parseExternal(defaultPython, args, source); }
+    catch (error) {
+      if (defaultPython !== 'python' || error.code !== 'ENOENT') throw error;
+      defaultPython = 'python3';
+      return parseExternal(defaultPython, args, source);
+    }
+  }
   if (extension === '.go') return parseExternal(options.go || 'go', ['run', path.join(__dirname, 'helpers', 'go_ast.go')], source, { GOCACHE: path.join(os.tmpdir(), 'agentorchestra-go-cache') });
   if (path.basename(file).toLowerCase().startsWith('dockerfile')) return parseDocker(source);
   throw new Error(`Formato sem parser: ${file}`);
