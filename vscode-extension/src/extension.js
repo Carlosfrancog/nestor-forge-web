@@ -14,6 +14,7 @@ const updates = require('./updates');
 const sharing = require('./share');
 const pythonRuntime = require('./python');
 const { openDashboard } = require('./dashboard');
+const { createCatalogView } = require('./catalogView');
 const { scanInWorker } = require('./projectMapRunner');
 const { openProjectMap } = require('./projectMapView');
 const { hasTrackedGeneratedOutput, writeProjectDocs } = require('./projectDocs');
@@ -22,10 +23,9 @@ const { documentationPrompt } = require('./projectDocumentationAgent');
 const setting = key => vscode.workspace.getConfiguration('agentOrchestra').get(key);
 const localFolders = () => (vscode.workspace.workspaceFolders || []).filter(folder => folder.uri.scheme === 'file');
 
-class AgentsTreeProvider {
-  constructor(extensionPath, logFile, platformFilter = 'all') {
+class AgentsCatalogProvider {
+  constructor(extensionPath, platformFilter = 'claude') {
     this.extensionPath = extensionPath;
-    this.logFile = logFile;
     this.changed = new vscode.EventEmitter();
     this.onDidChangeTreeData = this.changed.event;
     this.roots = [];
@@ -48,59 +48,9 @@ class AgentsTreeProvider {
       presets: agentRuns.PRESETS,
       presetDocumentation: path.join(this.extensionPath, 'scripts', 'AGENT_RUNS.md')
     });
-    this.records = activity.readRecords(this.logFile);
     this.changed.fire();
   }
 
-  getChildren(element) {
-    if (!element) return this.visibleRoots().map(root => ({ kind: 'root', root }));
-    if (element.kind === 'root') return element.root.groups.map(group => ({ kind: 'group', root: element.root, group }));
-    if (element.kind === 'group') return element.group.items.map(item => ({ kind: 'file', root: element.root, item }));
-    return [];
-  }
-
-  getTreeItem(element) {
-    if (element.kind === 'root') {
-      const item = new vscode.TreeItem(element.root.name, vscode.TreeItemCollapsibleState.Expanded);
-      item.iconPath = new vscode.ThemeIcon(element.root.scope === 'user' ? 'account' : 'folder-library');
-      item.description = element.root.scope === 'user' ? 'usuário' : 'projeto';
-      item.tooltip = element.root.path;
-      return item;
-    }
-    if (element.kind === 'group') {
-      const item = new vscode.TreeItem(element.group.label, vscode.TreeItemCollapsibleState.Expanded);
-      item.description = String(element.group.items.length);
-      item.iconPath = new vscode.ThemeIcon(element.group.id === 'scripts' ? 'terminal' : element.group.id === 'presets' ? 'play' : 'symbol-namespace');
-      return item;
-    }
-    const file = element.item.file;
-    const category = element.item.category;
-    const isMarkdown = path.extname(file).toLowerCase() === '.md';
-    const item = new vscode.TreeItem(element.item.label, vscode.TreeItemCollapsibleState.None);
-    item.resourceUri = vscode.Uri.file(file);
-    item.description = element.item.detail || (element.item.builtIn ? 'Ferramenta integrada' : path.relative(element.root.path, path.dirname(file)));
-    item.tooltip = category === 'scripts'
-      ? `${file}\nAções: executar sem argumentos, executar com argumentos, ler instruções.`
-      : ['claudeAgents', 'codexAgents'].includes(category)
-        ? `${file}\nAções: executar agente, abrir painel, compartilhar.` : file;
-    item.contextValue = category === 'agentPreset' ? 'orchestraPreset' : category === 'scripts' ? 'orchestraScript' : category === 'specs' ? 'orchestraSpec' :
-      ['claudeAgents', 'codexAgents'].includes(category) ? 'orchestraAgent' : category === 'skills' ? 'orchestraSkill' :
-        isMarkdown ? 'orchestraMarkdown' : 'orchestraConfig';
-    item.iconPath = new vscode.ThemeIcon(category === 'agentPreset' ? 'play' : category === 'scripts' ? 'terminal' : category === 'specs' ? 'symbol-object' : isMarkdown ? 'markdown' : 'settings-gear');
-    if (category === 'claudeAgents' || category === 'codexAgents') {
-      const run = this.runRegistry?.get(file);
-      if (run?.status === 'running') item.description = '● processo no terminal';
-      else if (run?.status === 'starting') item.description = '◌ abrindo terminal';
-      else if (run?.status === 'prepared') item.description = '◌ instrução preparada';
-      else {
-        const summary = activity.summarize(this.records, element.item, element.root);
-        if (summary.state === 'observed-active') item.description = '● uso observado';
-        else if (summary.state === 'stale') item.description = '◌ sinal antigo';
-      }
-    }
-    item.command = { command: category === 'agentPreset' ? 'agentOrchestra.runAgent' : category === 'scripts' ? 'agentOrchestra.instructions' : isMarkdown ? 'agentOrchestra.preview' : 'agentOrchestra.open', title: 'Abrir', arguments: [element] };
-    return item;
-  }
 }
 
 const fileFrom = element => element?.kind === 'file' ? element.item.file : undefined;
@@ -363,43 +313,18 @@ async function runAgent(context, provider, registry, showPanel, element, showPan
   }
 }
 
-async function shareAgent(context, provider, element) {
-  if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de compartilhar agentes.');
-  if (element?.kind !== 'file' || !['claudeAgents', 'codexAgents', 'skills'].includes(element.item.category)) return;
-  const action = await vscode.window.showQuickPick([
-    { label: 'Instalar em outro projeto aberto', detail: 'Copia agente, skills e referências relacionadas', value: 'local' },
-    { label: 'Exportar pacote ZIP', detail: 'Inclui manifesto e install.sh para compartilhar como arquivo', value: 'zip' }
-  ], { placeHolder: `Compartilhar ${element.item.label}` });
-  if (!action) return;
+async function shareAgent(context, element) {
+  if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('Confie no projeto antes de exportar agentes.');
+  if (element?.kind !== 'file' || !['claudeAgents', 'codexAgents'].includes(element.item.category)) return;
   try {
-    if (action.value === 'zip') {
-      const selected = await vscode.window.showSaveDialog({
-        defaultUri: vscode.Uri.file(path.join(element.root.path, `${element.item.label}.agentorchestra.zip`)),
-        filters: { 'Pacote Agent Orchestra': ['zip'] }, saveLabel: 'Exportar pacote'
-      });
-      if (!selected) return;
-      const result = await sharing.exportAgent(await pythonRuntime.resolvePython(context, vscode), context.extensionPath, element.root.path, element.item.file, selected.fsPath);
-      vscode.window.showInformationMessage(`Pacote criado com ${result.files.length} arquivo(s): ${selected.fsPath}`);
-      return;
-    }
-    const folders = localFolders().filter(folder => folder.uri.fsPath !== element.root.path);
-    if (!folders.length) return vscode.window.showInformationMessage('Abra também o projeto de destino no VS Code para compartilhar diretamente.');
-    const target = folders.length === 1 ? folders[0] : await vscode.window.showQuickPick(
-      folders.map(value => ({ label: value.name, description: value.uri.fsPath, value })),
-      { placeHolder: 'Projeto que receberá o agente' }
-    ).then(choice => choice?.value);
-    if (!target) return;
-    fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
-    const archive = path.join(context.globalStorageUri.fsPath, `transfer-${crypto.randomUUID()}.zip`);
-    try {
-      const python = await pythonRuntime.resolvePython(context, vscode);
-      await sharing.exportAgent(python, context.extensionPath, element.root.path, element.item.file, archive);
-      const review = await sharing.inspectPackage(python, context.extensionPath, archive, target.uri.fsPath);
-      if (review.conflicts.length) throw new Error(`Arquivos existentes em ${target.name}: ${review.conflicts.slice(0, 8).join(', ')}`);
-      const result = await sharing.importPackage(python, context.extensionPath, archive, target.uri.fsPath);
-      provider.refresh();
-      vscode.window.showInformationMessage(`${element.item.label} instalado em ${target.name} (${result.files.length} arquivo(s)).`);
-    } finally { fs.rmSync(archive, { force: true }); }
+    const selected = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(path.join(element.root.path, `${element.item.label}.agentorchestra.zip`)),
+      filters: { 'Pacote Agent Orchestra': ['zip'] }, saveLabel: 'Exportar agente'
+    });
+    if (!selected) return;
+    const result = await sharing.exportAgent(await pythonRuntime.resolvePython(context, vscode), context.extensionPath,
+      element.root.path, element.item.file, selected.fsPath);
+    vscode.window.showInformationMessage(`Agente exportado em um ZIP com ${result.files.length} arquivo(s): ${selected.fsPath}`);
   } catch (error) { vscode.window.showErrorMessage(`Agent Orchestra: ${error.message}`); }
 }
 
@@ -478,9 +403,9 @@ async function recentGitChanges(root) {
 function activate(context) {
   updates.start(context, vscode);
   const logFile = path.join(context.globalStorageUri.fsPath, 'activity.jsonl');
-  const savedFilter = context.workspaceState.get('platformFilter', 'all');
-  const provider = new AgentsTreeProvider(context.extensionPath, logFile,
-    ['all', 'claude', 'codex'].includes(savedFilter) ? savedFilter : 'all');
+  const savedFilter = context.workspaceState.get('platformFilter', 'claude');
+  const provider = new AgentsCatalogProvider(context.extensionPath,
+    ['claude', 'codex'].includes(savedFilter) ? savedFilter : 'claude');
   const registry = createRunRegistry(context);
   provider.runRegistry = registry;
   context.subscriptions.push(registry.onDidChange(() => provider.changed.fire()));
@@ -585,23 +510,14 @@ function activate(context) {
     else scanState(state).catch(error => { if (error.name !== 'AbortError') view.error(error); });
     return view;
   };
-  const view = vscode.window.createTreeView('agentOrchestra.files', { treeDataProvider: provider, showCollapseAll: true });
-  const updateViewLabel = () => {
-    view.description = provider.platformFilter === 'all' ? undefined : provider.platformFilter === 'claude' ? 'Claude' : 'Codex';
-    view.message = provider.visibleRoots().length ? undefined :
-      provider.platformFilter === 'all' ? 'Nenhum agente encontrado. Use a Forja para criar um no projeto.' :
-        `Nenhum item encontrado para ${view.description}.`;
-  };
-  updateViewLabel();
-  context.subscriptions.push(view, provider.changed);
-  const refresh = () => { provider.refresh(); updateViewLabel(); };
+  const refresh = () => provider.refresh();
+  context.subscriptions.push(provider.changed);
   const commands = {
     'agentOrchestra.refresh': refresh,
     'agentOrchestra.cyclePlatformFilter': async () => {
-      const filters = ['all', 'claude', 'codex'];
+      const filters = ['claude', 'codex'];
       const next = filters[(filters.indexOf(provider.platformFilter) + 1) % filters.length];
       provider.setPlatformFilter(next);
-      updateViewLabel();
       await context.workspaceState.update('platformFilter', next);
     },
     'agentOrchestra.find': () => findFile(provider),
@@ -616,7 +532,7 @@ function activate(context) {
     'agentOrchestra.instructions': showInstructions,
     'agentOrchestra.runScript': element => runScript(context, provider, element),
     'agentOrchestra.runScriptQuick': element => runScript(context, provider, element, false),
-    'agentOrchestra.shareAgent': element => shareAgent(context, provider, element),
+    'agentOrchestra.shareAgent': element => shareAgent(context, element),
     'agentOrchestra.importPackage': () => importAgentPackage(context, provider),
     'agentOrchestra.projectMap': showProjectMap,
     'agentOrchestra.generateProjectDocs': async () => {
@@ -631,6 +547,14 @@ function activate(context) {
     'agentOrchestra.copyPath': element => { const file = fileFrom(element); if (file) return vscode.env.clipboard.writeText(file); }
   };
   for (const [id, callback] of Object.entries(commands)) context.subscriptions.push(vscode.commands.registerCommand(id, callback));
+  createCatalogView(vscode, context, provider, async (type, name, element) => {
+    if (type === 'platform') {
+      provider.setPlatformFilter(name);
+      await context.workspaceState.update('platformFilter', name);
+    } else if (type === 'command' || type === 'entry') {
+      await vscode.commands.executeCommand(`agentOrchestra.${name}`, element);
+    }
+  });
   context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(refresh));
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
     if (event.affectsConfiguration('agentOrchestra')) refresh();

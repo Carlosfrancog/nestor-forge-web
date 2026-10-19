@@ -30,7 +30,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   const tasks = [];
   const taskExecutions = [];
   const panels = [];
-  let treeProvider;
+  const catalogMessages = [];
   const openedCommands = [];
   let copiedPrompt = '';
   let surfaceMode = 'terminal';
@@ -38,7 +38,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
     extensionPath: path.join(__dirname, '..'), globalStorageUri: { fsPath: root },
     extension: { packageJSON: require('../package.json') },
     globalState: { get: () => undefined, update: async () => undefined },
-    workspaceState: { get: () => undefined }, subscriptions: []
+    workspaceState: { get: () => undefined, update: async () => undefined }, subscriptions: []
   };
   const vscode = {
     EventEmitter: Emitter,
@@ -73,7 +73,14 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
     },
     window: {
       withProgress: async (_options, callback) => callback({ report() {} }, { onCancellationRequested() {} }),
-      createTreeView: (_id, options) => { treeProvider = options.treeDataProvider; return { dispose() {} }; },
+      registerWebviewViewProvider: (_id, provider) => {
+        provider.resolveWebviewView({
+          webview: { cspSource: 'test:', asWebviewUri: uri => uri.fsPath,
+            postMessage: message => { catalogMessages.push(message); }, onDidReceiveMessage: () => ({ dispose() {} }) },
+          onDidDispose: () => ({ dispose() {} })
+        });
+        return { dispose() {} };
+      },
       createWebviewPanel: () => {
         const disposers = [];
         const panel = { webview: { html: '', onDidReceiveMessage: () => ({ dispose() {} }) },
@@ -116,8 +123,7 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
     assert.match(panels.at(-1).webview.html, /Abrindo terminal/);
     processStarted.fire({ execution: taskExecutions.at(-1) });
     assert.match(panels.at(-1).webview.html, /Processo iniciado no terminal/);
-    assert.equal(treeProvider.getTreeItem({ kind: 'file', root: { name: 'project', path: root, scope: 'workspace' },
-      item: { file, label: path.parse(file).name, category } }).description, '● processo no terminal');
+    assert.equal(catalogMessages.at(-1).catalog.agentCount, 1);
     processEnded.fire({ execution: taskExecutions.at(-1), exitCode: 0 });
     assert.match(panels.at(-1).webview.html, /Processo encerrado/);
   }
@@ -140,8 +146,6 @@ test('agent command opens dashboard and starts an interactive CLI task for both 
   fs.writeFileSync(script, 'console.log("ready")');
   const scriptElement = { kind: 'file', root: { name: 'project', path: root, scope: 'workspace' },
     item: { file: script, label: 'script', category: 'scripts' } };
-  assert.equal(treeProvider.getTreeItem(scriptElement).contextValue, 'orchestraScript');
-  assert.equal(treeProvider.getTreeItem({ ...scriptElement, item: { ...scriptElement.item, category: 'skills' } }).contextValue, 'orchestraSkill');
   await callbacks.get('agentOrchestra.runScriptQuick')(scriptElement);
   assert.deepEqual(tasks.at(-1).execution.args, [script]);
   await callbacks.get('agentOrchestra.runScript')(scriptElement);

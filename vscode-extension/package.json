@@ -2,7 +2,7 @@
   "name": "nestor-forge-agent-orchestra",
   "displayName": "Agent Orchestra (Nestor Forge)",
   "description": "Explore agentes e skills, mapeie o projeto e gere contexto para documentação.",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "publisher": "CarlosEFranco",
   "icon": "media/agents.png",
   "engines": {
@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/updates.js && node --check src/share.js && node --check src/python.js && node --check src/structural.js && node --check src/diffAst.js && node --check src/moduleTaxonomy.js && node --check src/projectMap.js && node --check src/projectMapView.js && node --check src/projectMapRunner.js && node --check src/projectMapWorker.js && node --check src/projectDocs.js && node --check src/projectDocumentationAgent.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
+    "check": "node --check src/catalog.js && node --check src/extension.js && node --check src/catalogView.js && node --check media/catalog.js && node --check src/forge.js && node --check src/activity.js && node --check src/dashboard.js && node --check src/agentRuns.js && node --check src/updates.js && node --check src/share.js && node --check src/python.js && node --check src/structural.js && node --check src/diffAst.js && node --check src/moduleTaxonomy.js && node --check src/projectMap.js && node --check src/projectMapView.js && node --check src/projectMapRunner.js && node --check src/projectMapWorker.js && node --check src/projectDocs.js && node --check src/projectDocumentationAgent.js && node --check scripts/diff-ast.js && node --check backend/activity-hook.js",
     "vscode:prepublish": "python ../scripts/bundle_extension_backend.py"
   },
   "contributes": {
@@ -37,7 +37,8 @@
       "agentOrchestra": [
         {
           "id": "agentOrchestra.files",
-          "name": "Agentes e skills"
+          "name": "Agentes",
+          "type": "webview"
         }
       ]
     },
@@ -49,7 +50,7 @@
       },
       {
         "command": "agentOrchestra.cyclePlatformFilter",
-        "title": "Agent Orchestra: Alternar filtro Todos → Claude → Codex",
+        "title": "Agent Orchestra: Alternar Claude / Codex",
         "icon": "$(filter)"
       },
       {
@@ -118,7 +119,7 @@
       },
       {
         "command": "agentOrchestra.shareAgent",
-        "title": "Agent Orchestra: Compartilhar agente",
+        "title": "Agent Orchestra: Exportar agente em ZIP",
         "icon": "$(share)"
       },
       {
@@ -195,125 +196,7 @@
           "when": "false"
         }
       ],
-      "view/title": [
-        {
-          "command": "agentOrchestra.projectMap",
-          "when": "view == agentOrchestra.files",
-          "group": "navigation@1"
-        },
-        {
-          "command": "agentOrchestra.generateProjectDocs",
-          "when": "view == agentOrchestra.files",
-          "group": "more@4"
-        },
-        {
-          "command": "agentOrchestra.checkUpdates",
-          "when": "view == agentOrchestra.files",
-          "group": "navigation@2"
-        },
-        {
-          "command": "agentOrchestra.refresh",
-          "when": "view == agentOrchestra.files",
-          "group": "more@1"
-        },
-        {
-          "command": "agentOrchestra.find",
-          "when": "view == agentOrchestra.files",
-          "group": "more@2"
-        },
-        {
-          "command": "agentOrchestra.create",
-          "when": "view == agentOrchestra.files",
-          "group": "more@3"
-        },
-        {
-          "command": "agentOrchestra.forgeCreate",
-          "when": "view == agentOrchestra.files",
-          "group": "navigation@3"
-        },
-        {
-          "command": "agentOrchestra.cyclePlatformFilter",
-          "when": "view == agentOrchestra.files",
-          "group": "navigation@4"
-        },
-        {
-          "command": "agentOrchestra.importPackage",
-          "when": "view == agentOrchestra.files",
-          "group": "more@5"
-        },
-        {
-          "command": "agentOrchestra.runAgent",
-          "when": "view == agentOrchestra.files",
-          "group": "more@6"
-        }
-      ],
-      "view/item/context": [
-        {
-          "command": "agentOrchestra.preview",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraAgent || viewItem == orchestraSkill)",
-          "group": "navigation@1"
-        },
-        {
-          "command": "agentOrchestra.open",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSkill || viewItem == orchestraSpec)",
-          "group": "navigation@2"
-        },
-        {
-          "command": "agentOrchestra.reveal",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSkill || viewItem == orchestraSpec || viewItem == orchestraScript)",
-          "group": "navigation@3"
-        },
-        {
-          "command": "agentOrchestra.copyPath",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraMarkdown || viewItem == orchestraConfig || viewItem == orchestraAgent || viewItem == orchestraSkill || viewItem == orchestraSpec || viewItem == orchestraScript)",
-          "group": "navigation@4"
-        },
-        {
-          "command": "agentOrchestra.dashboard",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraAgent || viewItem == orchestraSpec)",
-          "group": "inline@1"
-        },
-        {
-          "command": "agentOrchestra.forgeBuild",
-          "when": "view == agentOrchestra.files && viewItem == orchestraSpec",
-          "group": "inline@0"
-        },
-        {
-          "command": "agentOrchestra.instructions",
-          "when": "view == agentOrchestra.files && viewItem == orchestraScript",
-          "group": "inline@2"
-        },
-        {
-          "command": "agentOrchestra.runScript",
-          "when": "view == agentOrchestra.files && viewItem == orchestraScript",
-          "group": "inline@1"
-        },
-        {
-          "command": "agentOrchestra.runScriptQuick",
-          "when": "view == agentOrchestra.files && viewItem == orchestraScript",
-          "group": "inline@0"
-        },
-        {
-          "command": "agentOrchestra.shareAgent",
-          "when": "view == agentOrchestra.files && (viewItem == orchestraAgent || viewItem == orchestraSkill)",
-          "group": "inline@2"
-        },
-        {
-          "command": "agentOrchestra.runAgent",
-          "when": "view == agentOrchestra.files && viewItem == orchestraAgent",
-          "group": "inline@0"
-        },
-        {
-          "command": "agentOrchestra.runAgent",
-          "when": "view == agentOrchestra.files && viewItem == orchestraPreset",
-          "group": "inline@0"
-        },
-        {
-          "command": "agentOrchestra.agentRunInstructions",
-          "when": "view == agentOrchestra.files && viewItem == orchestraPreset",
-          "group": "inline@1"
-        }
-      ]
+      "view/title": []
     },
     "configuration": {
       "title": "Agent Orchestra",

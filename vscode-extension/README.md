@@ -4,18 +4,13 @@ Extensão local para explorar agentes e skills, criar agentes com a Nestor Forge
 
 ## O que aparece na barra lateral
 
-- Agentes Codex (`.codex/agents/*.toml`) e Claude (`.claude/agents/*.md`).
-- Skills em `.agents`, `.codex` e `.claude`, rotas da Forja e instruções `AGENTS.md`/`CLAUDE.md`.
-- Especificações da Forja em `.agentorchestra/specs/*.json`.
-- **Scripts de skills** em `skills/<nome>/scripts`, o analisador integrado **Analisar diff estrutural** e uma seção **Roteiros prontos** para iniciar agentes.
+O painel **Agentes** tem um switch **Claude / Codex**, busca e cartões com as ações **Executar**, **Exportar ZIP**, **Abrir arquivo** e **Painel**. O switch mostra só os agentes da plataforma escolhida e é lembrado por projeto. Skills, scripts, rotas, especificações e instruções ficam recolhidos em **Recursos técnicos**. Uma skill é a instrução que apoia o agente; para transferir o agente completo, use **Exportar ZIP** no cartão do agente.
 
-Clique em um Markdown para abrir sua prévia em modo de leitura. Ao passar o mouse sobre uma linha, use os botões da própria árvore: nos scripts, **▶** executa sem argumentos, o ícone de lista executa com argumentos e o livro abre as instruções; nos agentes, **▶** inicia a escolha do roteiro e do destino, o grafo abre o painel e o ícone de compartilhar exporta ou instala em outro projeto. Especificações têm botões para gerar e abrir o painel. O menu de contexto continua disponível para editar e copiar caminhos.
-
-O botão de filtro na barra superior alterna entre **Todos → Claude → Codex**. Nos filtros Claude e Codex, a árvore mostra os agentes, skills, scripts e instruções da plataforma escolhida; itens compartilhados da Forja continuam visíveis. O filtro é lembrado por projeto e também vale para as buscas e a escolha rápida de agentes.
+Use **+ Criar agente** para abrir a Forja e **Importar ZIP** para instalar um pacote em outro projeto. O painel usa as cores do tema do VS Code e também mostra o estado das execuções iniciadas pela extensão.
 
 ## Criar com a Forja
 
-Use o botão com ícone de brilho na barra da árvore ou o comando **Agent Orchestra: Criar com a Forja**. Escolha projeto, perfil, nome, papel e missão. A extensão grava uma especificação JSON no projeto para revisão. A ação **Gerar a partir da especificação** cria os artefatos Codex + Claude ou somente Claude. Arquivos existentes não são substituídos pela Forja.
+Use **+ Criar agente** no painel ou o comando **Agent Orchestra: Definir agente com a Forja**. Escolha projeto, perfil, nome, papel e missão. A extensão grava uma especificação JSON no projeto para revisão. A ação **Gerar a partir da especificação** cria os artefatos Codex + Claude ou somente Claude. Arquivos existentes não são substituídos pela Forja.
 
 É necessário Python 3.10 ou mais recente. Se `python` não estiver disponível, a extensão baixa Python 3.13 automaticamente para seu armazenamento local na primeira operação que precisar dele. É necessária conexão com a internet nessa primeira vez. Para usar uma instalação própria, ajuste `agentOrchestra.pythonPath`.
 
@@ -63,7 +58,7 @@ O monitoramento depende de `node` disponível no `PATH` das ferramentas que exec
 
 ## Compartilhar agentes entre projetos
 
-Passe o mouse sobre um agente ou skill na árvore e clique no ícone **Compartilhar agente**. Escolha **Instalar em outro projeto aberto** para copiar seus arquivos relacionados diretamente, ou **Exportar pacote ZIP** para enviar o arquivo a outra pessoa. Para receber um ZIP, use **Agent Orchestra: Importar pacote de agente** na barra da árvore ou na paleta de comandos, escolha o projeto de destino e o arquivo.
+Clique em **Exportar ZIP** no cartão do agente. Esse único arquivo inclui a entrada Claude ou Codex selecionada, a entrada da outra plataforma quando existir, as skills e os arquivos relacionados. Para usar o agente em outro projeto, clique em **Importar ZIP**, escolha o projeto de destino e selecione o arquivo. Você não precisa exportar a skill separadamente.
 
 O pacote inclui um manifesto com hashes, os arquivos do agente e um `install.sh` para instalação manual com `sh install.sh /caminho/do/projeto` após extrair o ZIP. A extensão valida o manifesto e instala os arquivos diretamente; ela não executa scripts recebidos. A estrutura relativa de `.agents`, `.claude`, `.codex` e da especificação da Forja é preservada, mantendo as referências locais geradas pela Forja. Scripts e arquivos internos das skills acompanham o pacote.
 
@@ -75,15 +70,15 @@ Arquivos existentes no destino bloqueiam a importação, sem sobrescrita. Refer�
 
 ## Executar agentes com roteiros prontos
 
-Clique em **Executar agente** na linha de um agente Claude ou Codex, no painel do agente ou na barra da árvore. Você também pode clicar diretamente em um item da seção **Roteiros prontos** e escolher o agente. Há missão livre, revisão de alterações, investigação de bug, criação de testes, documentação e auditoria passiva de segurança. Informe o foco da tarefa e escolha o destino.
+Clique em **Executar** no cartão de um agente Claude ou Codex, ou use o comando **Agent Orchestra: Executar agente**. Você também pode abrir **Recursos técnicos → Roteiros prontos** e escolher uma missão. Há missão livre, revisão de alterações, investigação de bug, criação de testes, documentação e auditoria passiva de segurança. Informe o foco da tarefa e escolha o destino.
 
-No **terminal integrado**, a extensão inicia uma sessão interativa do CLI no projeto e abre o painel do agente. O Claude recebe o agente pelo parâmetro `--agent`; o Codex recebe uma instrução para delegar a tarefa ao subagente personalizado. A conversa, ferramentas e aprovações ficam no terminal, enquanto o painel e a árvore acompanham o processo e seu código de saída. O painel não confunde esse estado com os sinais opcionais dos hooks.
+No **terminal integrado**, a extensão inicia uma sessão interativa do CLI no projeto e abre o painel do agente. O Claude recebe o agente pelo parâmetro `--agent`; o Codex recebe uma instrução para delegar a tarefa ao subagente personalizado. A conversa, ferramentas e aprovações ficam no terminal, enquanto o painel e os cartões acompanham o processo e seu código de saída. O painel não confunde esse estado com os sinais opcionais dos hooks.
 
 Na opção **extensão oficial**, o Agent Orchestra abre Claude Code ou Codex no VS Code e copia a instrução para colar e enviar. Como não há uma API pública estável para enviar a mensagem às extensões, essa opção é uma preparação manual e aparece assim no painel. Para executar imediatamente, escolha o terminal. Leia os detalhes em `scripts/AGENT_RUNS.md`. Os executáveis podem ser definidos em `agentOrchestra.claudePath` e `agentOrchestra.codexPath`.
 
 ## Scripts de skills e análise de diff
 
-Scripts `.py`, `.js`, `.mjs`, `.cjs`, `.go`, `.sh` e `.ps1` são descobertos sob `scripts/` de cada skill. Clique no script para ler o `SKILL.md`. A opção **Executar script manualmente** solicita argumentos em uma lista JSON e abre uma tarefa do VS Code. A execução exige um projeto confiável e é iniciada pelo desenvolvedor.
+Scripts `.py`, `.js`, `.mjs`, `.cjs`, `.go`, `.sh` e `.ps1` são descobertos sob `scripts/` de cada skill. Em **Recursos técnicos**, use **Instruções** para ler o `SKILL.md` ou **Executar** para iniciar o script sem argumentos. O comando **Agent Orchestra: Executar script com argumentos** continua disponível na paleta. A execução exige um projeto confiável e é iniciada pelo desenvolvedor.
 
 O analisador integrado compara uma referência Git (por padrão `HEAD`) com a árvore atual. O cabeçalho identifica o projeto, quantos arquivos mudaram, quais formatos têm parser e quais ficaram fora da análise estrutural. Arquivos novos são identificados sem fingir que há uma versão anterior. Para arquivos modificados, o Markdown traz trechos antes/depois e estruturas adicionadas, removidas ou alteradas. As instruções detalhadas ficam em `scripts/DIFF_AST.md` e aparecem ao clicar no script. A cobertura inclui PHP/Laravel, JS/TS, Vue, CSS/Tailwind, Python, Go, PostgreSQL SQL e Dockerfile. Python e Go precisam dos respectivos executáveis para a análise dessas linguagens. Templates Blade, classes Tailwind dinâmicas e SQL não aceito pelo parser podem exigir inspeção manual.
 
@@ -95,10 +90,10 @@ npm ci
 npm test
 npm run check
 npm run vscode:prepublish
-npx @vscode/vsce package --out ../dist/agentorchestra-0.5.10.vsix
+npx @vscode/vsce package --out ../dist/agentorchestra-0.5.11.vsix
 ```
 
-Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.10.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.10.vsix` na raiz do repositório.
+Para testar em uma janela de desenvolvimento, abra `vscode-extension` no VS Code e pressione **F5**. Para instalar o pacote, abra **Extensões → … → Instalar do VSIX…** e selecione `dist/agentorchestra-0.5.11.vsix`; pelo terminal, use `code --install-extension dist/agentorchestra-0.5.11.vsix` na raiz do repositório.
 
 ## Atualizações pelo site
 
